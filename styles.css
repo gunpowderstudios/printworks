@@ -29,3 +29,5 @@ footer{border-top:1px solid var(--line);padding:25px;text-align:center;font-size
 @media(max-width:900px){.style-role-key{display:none}.style-row{grid-template-columns:1fr 1fr}.style-type-preview{grid-column:1/-1}.style-lab-toolbar,.style-lab-export{align-items:flex-start;flex-direction:column}}
 
 .page-size{position:absolute;left:8px;top:7px;font:9px/1 monospace;color:#999}.page-card h4{margin-top:28px}
+
+.page-card{width:100%;height:auto;min-height:0}.page-card[data-real-shape="true"]{height:auto}.page-grid{align-items:start}.page-card .page-size{max-width:75%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
