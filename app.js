@@ -246,6 +246,22 @@ function removeUnifiedStyleDefinitions(xml){
  }
  return out;
 }
+async function writeValidIdml(out, sourceZip, transformXml){
+ const mime='application/vnd.adobe.indesign-idml-package';
+ out.file('mimetype',mime,{compression:'STORE'});
+ const entries=Object.values(sourceZip.files).filter(f=>!f.dir&&f.name!=='mimetype');
+ for(const f of entries){
+  if(f.name.endsWith('.xml')){
+   let xml=await f.async('string');
+   if(transformXml)xml=await transformXml(f.name,xml);
+   out.file(f.name,xml,{compression:'DEFLATE'});
+  }else{
+   out.file(f.name,await f.async('uint8array'),{compression:'DEFLATE'});
+  }
+ }
+ return out.generateAsync({type:'blob',compression:'DEFLATE',compressionOptions:{level:6}});
+}
+
 async function exportTidiedIDML(){
  if(!state.zip)return;
  const assigned=state.styleDefs.filter(s=>state.styleRoles[s.self]&&state.styleRoles[s.self]!=='none');
@@ -253,16 +269,10 @@ async function exportTidiedIDML(){
  try{
   $('#tidyExportBtn').disabled=true;$('#tidyExportBtn').textContent='Tidying…';
   const out=new JSZip();
-  for(const f of Object.values(state.zip.files)){
-   if(f.dir){out.folder(f.name);continue}
-   if(f.name.endsWith('.xml')){
-    let xml=await f.async('string');
-    xml=remapAllStyleReferences(xml);
-    if(f.name==='Resources/Styles.xml')xml=buildCleanStyleGroup(removeUnifiedStyleDefinitions(xml));
-    out.file(f.name,xml);
-   }else out.file(f.name,await f.async('uint8array'));
-  }
-  const blob=await out.generateAsync({type:'blob',compression:'DEFLATE',compressionOptions:{level:6}});
+  const blob=await writeValidIdml(out,state.zip,async(name,xml)=>{
+    if(name==='Resources/Styles.xml')return buildCleanStyleGroup(xml);
+    return remapAllStyleReferences(xml);
+  });
   const link=document.createElement('a');link.href=URL.createObjectURL(blob);
   link.download=state.file.name.replace(/\.idml$/i,'')+'-printworks-tidied.idml';
   document.body.appendChild(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(link.href),2000);
@@ -412,19 +422,12 @@ async function exportIDML(){
  try{
   $('#exportBtn').disabled=true;$('#exportBtn').textContent='Building…';
   const out=new JSZip();
-  const entries=Object.values(state.zip.files);
   const targets=detectStyleTargets();
-  for(const f of entries){
-    if(f.dir){out.folder(f.name);continue}
-    if(f.name==='Resources/Styles.xml'){
-      out.file(f.name,addPrintworksStyles(await f.async('string'),state.selected));
-    }else if($('#applyStyles').checked&&f.name.startsWith('Stories/')&&f.name.endsWith('.xml')){
-      out.file(f.name,applyStoryStyles(await f.async('string'),targets));
-    }else{
-      out.file(f.name,await f.async('uint8array'));
-    }
-  }
-  const blob=await out.generateAsync({type:'blob',compression:'DEFLATE',compressionOptions:{level:6}});
+  const blob=await writeValidIdml(out,state.zip,async(name,xml)=>{
+    if(name==='Resources/Styles.xml')return addPrintworksStyles(xml,state.selected);
+    if($('#applyStyles').checked&&name.startsWith('Stories/')&&name.endsWith('.xml'))return applyStoryStyles(xml,targets);
+    return xml;
+  });
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);
   a.download=state.file.name.replace(/\.idml$/i,'')+'-printworks-'+state.selected.id+'.idml';
   document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),2000);
