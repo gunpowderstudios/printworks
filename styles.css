@@ -31,3 +31,9 @@ footer{border-top:1px solid var(--line);padding:25px;text-align:center;font-size
 .page-size{position:absolute;left:8px;top:7px;font:9px/1 monospace;color:#999}.page-card h4{margin-top:28px}
 
 .page-card{width:100%;height:auto;min-height:0}.page-card[data-real-shape="true"]{height:auto}.page-grid{align-items:start}.page-card .page-size{max-width:75%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+.live-preview-badge{font-size:9px;letter-spacing:.06em;padding:6px 8px;border:1px solid var(--line);background:#fff;color:var(--muted);white-space:nowrap}
+.live-preview-active .page-card h4{font-family:var(--pw-head-font)!important}
+.live-preview-active .page-card p{font-family:var(--pw-body-font)!important}
+.live-preview-active .page-card .page-size,.live-preview-active .page-card .page-num{font-family:var(--pw-label-font)!important}
+.live-preview-active .page-card{outline:1px solid rgba(211,74,47,.18)}
