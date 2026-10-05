@@ -2,6 +2,20 @@
 
 All notable changes to Printworks are recorded here.
 
+## 1.3.4 — 2026-10-05
+
+### Fixed
+- Read `AppliedFont` and `Leading` from the real IDML paragraph-style `Properties` block.
+- Selecting a typography direction can now update the actual existing paragraph styles assigned in Style Lab, instead of mostly adding unused Printworks styles.
+- Existing point sizes, colours, alignment, spacing and other layout settings are preserved when changing typography.
+- Reworked IDML page-bound parsing to read `GeometricBounds` directly from each `<Page>` tag.
+- Strengthened thumbnail aspect-ratio styling so 50 × 50 mm Deck of Dungeon cards display square.
+
+### Verified
+- Deck of Dungeon uses styles including `item title`, `card text small`, `rules`, `rules heading` and `item tile description`.
+- Its card pages report 141.732 × 141.732 pt, equivalent to 50 × 50 mm.
+
+
 ## 1.3.3 — 2026-10-05
 
 ### Added
