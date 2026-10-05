@@ -2,6 +2,14 @@
 
 All notable changes to Printworks are recorded here.
 
+## 1.3.2 — 2026-10-05
+
+### Improved
+- Switched both export paths to a safer IDML packager.
+- Preserved the IDML/UCF requirement that the `mimetype` entry is written first and uncompressed.
+- Made Style Lab tidy export more conservative by keeping original style definitions while remapping usage to canonical Printworks styles.
+
+
 ## 1.3.1 — 2026-10-05
 
 ### Fixed
