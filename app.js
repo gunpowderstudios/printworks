@@ -77,21 +77,22 @@ function analyse(){
 function parsePageGeometry(){
  const pages=[];
  for(const spread of state.spreads){
-  try{
-   const doc=new DOMParser().parseFromString(spread.text,'application/xml');
-   for(const page of doc.getElementsByTagName('Page')){
-    const bounds=(page.getAttribute('GeometricBounds')||'').trim().split(/\s+/).map(Number);
+  const tags=spread.text.match(/<Page\b[^>]*>/g)||[];
+  for(const tag of tags){
+    const bm=tag.match(/\bGeometricBounds="([^"]+)"/);
+    if(!bm)continue;
+    const bounds=bm[1].trim().split(/\s+/).map(Number);
     if(bounds.length!==4||bounds.some(Number.isNaN))continue;
+    const nm=tag.match(/\bName="([^"]*)"/);
     const [y1,x1,y2,x2]=bounds;
     const width=Math.abs(x2-x1),height=Math.abs(y2-y1);
     pages.push({
-      name:page.getAttribute('Name')||String(pages.length+1),
+      name:nm?nm[1]:String(pages.length+1),
       width,height,
       widthMm:width*25.4/72,
       heightMm:height*25.4/72
     });
-   }
-  }catch(e){console.warn('Could not read page geometry',spread.name,e)}
+  }
  }
  return pages.sort((a,b)=>{
   const an=Number(a.name),bn=Number(b.name);
@@ -124,7 +125,7 @@ function renderDocument(){
    const g=state.pageGeometry[i]||{width:3,height:4,widthMm:0,heightMm:0};
    const ratio=g.height?g.width/g.height:.75;
    const dims=g.widthMm&&g.heightMm?formatMm(g.widthMm)+' × '+formatMm(g.heightMm)+' mm':'';
-   return `<article class="page-card" style="aspect-ratio:${g.width}/${g.height}" title="${escapeHtml(dims)}"><span class="page-num">${i+1}</span><span class="page-size">${escapeHtml(dims)}</span><h4>${escapeHtml(head||'Page '+(i+1))}</h4><p>${escapeHtml(body)}</p><div class="page-lines"><i></i><i></i><i></i></div></article>`;
+   return `<article class="page-card" data-real-shape="true" style="aspect-ratio:${g.width} / ${g.height}" title="${escapeHtml(dims)}"><span class="page-num">${i+1}</span><span class="page-size">${escapeHtml(dims)}</span><h4>${escapeHtml(head||'Page '+(i+1))}</h4><p>${escapeHtml(body)}</p><div class="page-lines"><i></i><i></i><i></i></div></article>`;
  }).join('');
 }
 
@@ -141,15 +142,20 @@ const STYLE_ROLES=[
 function parseParagraphStyles(xml){
  try{
   const doc=new DOMParser().parseFromString(xml,'application/xml');
-  return [...doc.getElementsByTagName('ParagraphStyle')].map(n=>({
-    self:n.getAttribute('Self')||'',
-    name:n.getAttribute('Name')||'Unnamed Style',
-    font:n.getAttribute('AppliedFont')||'',
-    fontStyle:n.getAttribute('FontStyle')||'Regular',
-    size:n.getAttribute('PointSize')||'',
-    leading:n.getAttribute('Leading')||'',
-    basedOn:[...n.getElementsByTagName('BasedOn')][0]?.textContent||''
-  })).filter(s=>s.name!=='[No Paragraph Style]'&&s.name!=='[Basic Paragraph]');
+  return [...doc.getElementsByTagName('ParagraphStyle')].map(n=>{
+    const props=[...n.getElementsByTagName('Properties')][0];
+    const fontNode=props?[...props.getElementsByTagName('AppliedFont')][0]:null;
+    const leadingNode=props?[...props.getElementsByTagName('Leading')][0]:null;
+    return {
+      self:n.getAttribute('Self')||'',
+      name:n.getAttribute('Name')||'Unnamed Style',
+      font:n.getAttribute('AppliedFont')||fontNode?.textContent||'',
+      fontStyle:n.getAttribute('FontStyle')||'Regular',
+      size:n.getAttribute('PointSize')||'',
+      leading:n.getAttribute('Leading')||leadingNode?.textContent||'',
+      basedOn:props?[...props.getElementsByTagName('BasedOn')][0]?.textContent||'':''
+    };
+  }).filter(s=>s.name!=='$ID/[No paragraph style]'&&s.name!=='$ID/NormalParagraphStyle'&&s.name!=='[No Paragraph Style]'&&s.name!=='[Basic Paragraph]');
  }catch(e){console.warn('Could not parse paragraph styles',e);return []}
 }
 function guessStyleRole(style){
@@ -424,6 +430,43 @@ function escAttr(s){return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;'
 function makeParagraphStyle(name,s){
  return `<ParagraphStyle Self="ParagraphStyle/PW_${name}" Name="PW ${name}" Imported="false" NextStyle="ParagraphStyle/$ID/[No paragraph style]" AppliedFont="${escAttr(s.font)}" FontStyle="${escAttr(s.style)}" PointSize="${s.size}" Leading="${s.leading}"><Properties><BasedOn type="string">$ID/[No paragraph style]</BasedOn></Properties></ParagraphStyle>`;
 }
+function moodStyleForRole(role,mood){
+ if(['card-heading','item-heading','section-heading'].includes(role))return mood.headStyle;
+ if(['caption','rules-note'].includes(role))return mood.labelStyle;
+ return mood.bodyStyle;
+}
+function setStyleTypography(xml,self,spec){
+ const doc=new DOMParser().parseFromString(xml,'application/xml');
+ const styles=[...doc.getElementsByTagName('ParagraphStyle')];
+ const node=styles.find(n=>n.getAttribute('Self')===self);
+ if(!node)return xml;
+ node.setAttribute('FontStyle',spec.style||'Regular');
+ let props=[...node.getElementsByTagName('Properties')][0];
+ if(!props){
+   props=doc.createElement('Properties');
+   node.insertBefore(props,node.firstChild);
+ }
+ let font=[...props.getElementsByTagName('AppliedFont')][0];
+ if(!font){
+   font=doc.createElement('AppliedFont');
+   font.setAttribute('type','string');
+   props.appendChild(font);
+ }
+ font.textContent=spec.font;
+ return new XMLSerializer().serializeToString(doc);
+}
+function applyMoodToAssignedStyles(xml,mood){
+ let out=xml;
+ const assigned=state.styleDefs.filter(s=>{
+   const role=state.styleRoles[s.self];
+   return role&&role!=='none';
+ });
+ for(const s of assigned){
+   out=setStyleTypography(out,s.self,moodStyleForRole(state.styleRoles[s.self],mood));
+ }
+ return out;
+}
+
 function addPrintworksStyles(xml,m){
  const block=`<ParagraphStyleGroup Self="ParagraphStyleGroup/Printworks" Name="Printworks"><Properties></Properties>${makeParagraphStyle('Headline',m.headStyle)}${makeParagraphStyle('Body',m.bodyStyle)}${makeParagraphStyle('Label',m.labelStyle)}</ParagraphStyleGroup>`;
  if(xml.includes('ParagraphStyleGroup/Printworks')){
@@ -456,8 +499,11 @@ async function exportIDML(){
   const out=new JSZip();
   const targets=detectStyleTargets();
   const blob=await writeValidIdml(out,state.zip,async(name,xml)=>{
-    if(name==='Resources/Styles.xml')return addPrintworksStyles(xml,state.selected);
-    if($('#applyStyles').checked&&name.startsWith('Stories/')&&name.endsWith('.xml'))return applyStoryStyles(xml,targets);
+    if(name==='Resources/Styles.xml'){
+      let styled=addPrintworksStyles(xml,state.selected);
+      if($('#applyStyles').checked)styled=applyMoodToAssignedStyles(styled,state.selected);
+      return styled;
+    }
     return xml;
   });
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);
