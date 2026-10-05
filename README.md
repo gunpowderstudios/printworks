@@ -1,14 +1,14 @@
 # Printworks
 
-**Version 1.1**
+**Version 1.2**
 
 Printworks is a browser-based typography exploration tool for Adobe InDesign IDML documents.
 
-## v1.1
+## v1.2
 
 - Upload an `.idml` file locally in the browser.
 - Inspect page/spread count, stories, word count, detected fonts and named styles.
-- Show lightweight page cards using text extracted from the IDML.\n- Optionally add the matching PDF for accurate rendered page thumbnails.\n- Click any rendered PDF thumbnail for a larger page preview.\n- Warn when PDF and IDML page counts do not match.
+- Show lightweight page cards using text extracted from the IDML.\n- Optionally add the matching PDF for accurate rendered page thumbnails.\n- Click any rendered PDF thumbnail to open **Page Lab**.\n- Extract text from the selected PDF page with PDF.js.\n- Infer a likely kicker, headline and body from that page.\n- Compare the actual page wording across all typography directions beside the original rendered page.\n- Warn when PDF and IDML page counts do not match.
 - Compare four typographic mood-board directions.
 - Export a new IDML with a **Printworks** paragraph-style group containing:
   - PW Headline
@@ -20,7 +20,7 @@ Printworks is a browser-based typography exploration tool for Adobe InDesign IDM
 
 ## Important limitation
 
-IDML does not contain a rendered page preview in the same way as a PDF. Version 1.0 therefore shows a structural/textual page approximation rather than pixel-perfect InDesign rendering.
+IDML does not contain a rendered page preview in the same way as a PDF. IDML-only mode therefore shows a structural/textual page approximation rather than pixel-perfect InDesign rendering.
 
 Printworks references fonts in the generated paragraph styles but does **not** package or redistribute font files. InDesign will resolve installed fonts in the normal way and report missing fonts if necessary.
 
@@ -37,4 +37,4 @@ The project is static and can be hosted directly with GitHub Pages from the repo
 - Better style-role detection.
 - Master-page and object-style recommendations.
 - Colour/palette extraction and alternatives.
-- AI-assisted layout critique.
+- More advanced page hierarchy detection using IDML geometry and PDF text coordinates.\n- AI-assisted layout critique.
