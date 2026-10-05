@@ -209,15 +209,9 @@ function remapAllStyleReferences(xml){
  }
  return out;
 }
-function escapeRegExp(s){return String(s).replace(/[.*+?^$()|[\]\\]/g,'\\function remapStoryToCleanStyles(xml){
- let out=xml;
- for(const s of state.styleDefs){
-  const role=state.styleRoles[s.self];
-  if(!role||role==='none')continue;
-  out=out.split('AppliedParagraphStyle="'+s.self+'"').join('AppliedParagraphStyle="'+canonicalStyleId(role)+'"');
- }
- return out;
-}')}
+function escapeRegExp(s){
+ return String(s).replace(/[.*+?^$()|[\]\\]/g,'\\$&');
+}
 function removeUnifiedStyleDefinitions(xml){
  let out=xml;
  for(const s of state.styleDefs){
