@@ -1,1 +1,111 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="Printworks analyses Adobe InDesign IDML files and suggests alternative typography directions.">
+  <title>Printworks — IDML Typography Lab</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" defer></script>
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <div class="mark">P</div>
+      <div>
+        <strong>PRINTWORKS</strong>
+        <span>Typography Lab</span>
+      </div>
+    </div>
+    <div class="version">v1.0</div>
+  </header>
 
+  <main>
+    <section class="hero">
+      <p class="eyebrow">IDML DESIGN EXPLORER</p>
+      <h1>See your layout.<br>Try another typographic voice.</h1>
+      <p class="intro">Drop in an Adobe InDesign IDML file. Printworks reads the document structure and typography, then builds alternative typographic directions you can compare and export back into a new IDML.</p>
+      <div id="dropZone" class="drop-zone" tabindex="0" role="button" aria-label="Upload IDML file">
+        <input id="fileInput" type="file" accept=".idml,application/zip" hidden>
+        <div class="drop-icon">Aa</div>
+        <h2>Drop an IDML file here</h2>
+        <p>or click to choose a file</p>
+        <small>Your file stays in this browser.</small>
+      </div>
+    </section>
+
+    <section id="workspace" class="workspace hidden">
+      <div class="document-bar">
+        <div>
+          <p class="eyebrow">OPEN DOCUMENT</p>
+          <h2 id="docName">Untitled.idml</h2>
+        </div>
+        <button id="newFileBtn" class="ghost">Open another</button>
+      </div>
+
+      <div class="dashboard">
+        <aside class="inspector panel">
+          <div class="panel-title">
+            <span>Document scan</span>
+            <span id="healthBadge" class="badge">Ready</span>
+          </div>
+          <div id="stats" class="stats"></div>
+          <div class="rule"></div>
+          <h3>Fonts detected</h3>
+          <div id="fontList" class="chips"></div>
+          <h3>Paragraph styles</h3>
+          <div id="styleList" class="mini-list"></div>
+        </aside>
+
+        <section class="preview panel">
+          <div class="panel-title">
+            <span>Pages & spreads</span>
+            <span id="pageCount"></span>
+          </div>
+          <div id="pageGrid" class="page-grid"></div>
+        </section>
+      </div>
+
+      <section class="mood-section">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">TYPOGRAPHIC DIRECTIONS</p>
+            <h2>Choose a new voice</h2>
+          </div>
+          <p>These are style-system suggestions, not flattened artwork. Exporting adds editable InDesign paragraph styles to a copy of your IDML.</p>
+        </div>
+        <div id="moodGrid" class="mood-grid"></div>
+      </section>
+
+      <section id="exportPanel" class="export-panel hidden">
+        <div>
+          <p class="eyebrow">SELECTED DIRECTION</p>
+          <h2 id="selectedTitle">—</h2>
+          <p id="selectedDescription"></p>
+          <label class="check-row">
+            <input id="applyStyles" type="checkbox" checked>
+            <span>Also apply the new body/headline styles where Printworks can identify suitable existing styles</span>
+          </label>
+          <p class="fineprint">Font files are not embedded. Printworks adds font/style references; InDesign will use installed fonts or flag missing ones normally.</p>
+        </div>
+        <button id="exportBtn" class="primary">Create new IDML</button>
+      </section>
+    </section>
+
+    <section class="how">
+      <div>
+        <p class="eyebrow">VERSION 1.0</p>
+        <h2>What it does now</h2>
+      </div>
+      <div class="how-grid">
+        <article><b>01</b><h3>Reads IDML</h3><p>Unpacks the document locally and inspects spreads, stories, fonts and paragraph styles.</p></article>
+        <article><b>02</b><h3>Builds a mood board</h3><p>Shows several typography systems with headline, body, label and accent treatments.</p></article>
+        <article><b>03</b><h3>Writes editable styles</h3><p>Exports a fresh IDML containing a Printworks style group, ready to refine in InDesign.</p></article>
+      </div>
+    </section>
+  </main>
+
+  <footer>Gunpowder Studios · Printworks v1.0</footer>
+</body>
+</html>
