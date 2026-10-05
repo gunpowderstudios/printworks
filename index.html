@@ -9,6 +9,9 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" defer></script>
   <script src="js/idml-model.js" defer></script>
   <script src="js/inspector.js" defer></script>
+  <script src="js/fontmap.js" defer></script>
+  <script src="js/printcheck.js" defer></script>
+  <script src="js/panels.js" defer></script>
   <script src="app.js" defer></script>
 </head>
 <body>
@@ -20,7 +23,7 @@
         <span>Typography Lab</span>
       </div>
     </div>
-    <div class="version">v1.5</div>
+    <div class="version">v1.6</div>
   </header>
 
   <main>
@@ -132,6 +135,43 @@
         </div>
       </section>
 
+      <section id="fontMapSection" class="fontmap-section hidden">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">FONT MAP</p>
+            <h2>Change fonts everywhere, then check for print</h2>
+          </div>
+          <p>Pick a new font for each font in the file. Printworks changes it in styles and in text where the font was set directly, so nothing keeps the old font. Only font family and style change. Everything else in the file stays exactly as it is.</p>
+        </div>
+        <div class="panel insp-block">
+          <div class="panel-title"><span>Fonts in this file</span>
+            <div class="fm-tools"><select id="fmPreset" aria-label="Fill from a typography direction"></select><button id="fmClear" class="mini-btn" type="button">Clear</button></div>
+          </div>
+          <div id="fmTable"></div>
+          <datalist id="fmFamilies"></datalist><datalist id="fmStyles"></datalist>
+        </div>
+        <div class="panel insp-block">
+          <div class="panel-title"><span>Print checks</span><button id="pfReset" class="mini-btn" type="button">Reset to starting values</button></div>
+          <p class="insp-note">These starting values are common rules of thumb. Replace them with your printer’s own specs; they are saved in this browser.</p>
+          <div class="pf-grid">
+            <label>Minimum text size (pt)<input id="pf_minText" class="pf-in" type="number" min="0" step="0.5"></label>
+            <label>Light weights below (pt)<input id="pf_lightMin" class="pf-in" type="number" min="0" step="0.5"></label>
+            <label>Multi-ink text below (pt)<input id="pf_multiInkMin" class="pf-in" type="number" min="0" step="0.5"></label>
+            <label>Reversed-out text below (pt)<input id="pf_reverseMin" class="pf-in" type="number" min="0" step="0.5"></label>
+            <label>Safe margin (mm)<input id="pf_safeMm" class="pf-in" type="number" min="0" step="0.5"></label>
+          </div>
+          <p id="pfFile" class="insp-note"></p>
+          <div id="pcResults"></div>
+          <p class="insp-note">Sizes, weights and ink colours come straight from the file. Distance to the trim edge is measured from the frame box, not the text inside it; measuring the text itself needs the page renderer.</p>
+        </div>
+        <div class="panel insp-block">
+          <div class="panel-title"><span>Export</span></div>
+          <p class="insp-note">Builds a new IDML, then checks it before offering the download.</p>
+          <button id="fmExportBtn" class="primary" type="button" disabled>Create IDML with font map</button>
+          <div id="fmReport"></div>
+        </div>
+      </section>
+
       <section id="styleLab" class="style-lab">
         <div class="section-heading">
           <div>
@@ -188,7 +228,7 @@
 
     <section class="how">
       <div>
-        <p class="eyebrow">VERSION 1.5</p>
+        <p class="eyebrow">VERSION 1.6</p>
         <h2>What it does now</h2>
       </div>
       <div class="how-grid">
@@ -200,6 +240,6 @@
     <div id="lightbox" class="lightbox hidden" aria-hidden="true"><button id="lightboxClose" aria-label="Close preview">×</button><div class="lightbox-inner"><canvas id="lightboxCanvas"></canvas><div id="lightboxCaption"></div></div></div>
 </main>
 
-  <footer>Gunpowder Studios · Printworks v1.5</footer>
+  <footer>Gunpowder Studios · Printworks v1.6</footer>
 </body>
 </html>

@@ -1,5 +1,5 @@
 /*
- * Printworks structure inspector (v1.5)
+ * Printworks structure inspector (v1.6)
  *
  * Reads the IDML through PW.idml, then shows:
  *   - how ready each text frame is for the upcoming page renderer
@@ -24,6 +24,7 @@
   /* ------------------------------------------------------------ lifecycle */
   function reset() {
     runId++; ctx = null; pdfResult = null; pdfRunning = false; currentPage = 0;
+    if (PW.panels) PW.panels.reset();
     const body = $('#inspectorBody'), prog = $('#inspProgress');
     if (body) body.classList.add('hidden');
     if (prog) prog.classList.add('hidden');
@@ -31,6 +32,7 @@
 
   async function start(state) {
     const my = ++runId; pdfResult = null; pdfRunning = false; currentPage = 0; ctx = null;
+    if (PW.panels) PW.panels.reset();
     const body = $('#inspectorBody'), prog = $('#inspProgress');
     if (!body || !prog) return;
     body.classList.add('hidden'); prog.classList.remove('hidden');
@@ -57,6 +59,7 @@
       prog.classList.add('hidden'); body.classList.remove('hidden');
       render();
       updateFontChips();
+      if (PW.panels) PW.panels.onScan(ctx);
       if (state.pdfDoc) runPdfCheck();
     } catch (err) {
       if (my !== runId) return;
@@ -158,12 +161,17 @@
   }
 
   function wireframe(pg) {
-    const { scan } = ctx; const r = pg.rect; const m = Math.max(r.w, r.h) * 0.08;
+    const { scan } = ctx; const r = pg.rect;
+    const bl = ctx.doc.prefs && ctx.doc.prefs.bleed; const bleedPt = bl && bl.top != null ? bl.top : 0;
+    const prof = PW.printcheck ? PW.printcheck.loadProfile() : null; const safePt = prof ? prof.safeMm * 72 / 25.4 : 0;
+    const m = Math.max(r.w, r.h) * 0.08 + bleedPt;
     const items = scan.spreads[pg.spreadIndex].items.filter(i => i.pageId === pg.id && i.points);
     const fs = Math.max(3.5, Math.min(r.w, r.h) * 0.07);
     const pts = i => i.points.map(p => fmt(p[0]) + ',' + fmt(p[1])).join(' ');
     let svg = `<svg class="insp-wire" viewBox="${fmt(r.x - m)} ${fmt(r.y - m)} ${fmt(r.w + 2 * m)} ${fmt(r.h + 2 * m)}" role="img" aria-label="Frame layout of page ${esc(pg.name)}">`;
     svg += `<rect x="${fmt(r.x)}" y="${fmt(r.y)}" width="${fmt(r.w)}" height="${fmt(r.h)}" class="wire-page"/>`;
+    if (bleedPt) svg += `<rect x="${fmt(r.x - bleedPt)}" y="${fmt(r.y - bleedPt)}" width="${fmt(r.w + 2 * bleedPt)}" height="${fmt(r.h + 2 * bleedPt)}" class="wire-bleed"/>`;
+    if (safePt && safePt * 2 < Math.min(r.w, r.h)) svg += `<rect x="${fmt(r.x + safePt)}" y="${fmt(r.y + safePt)}" width="${fmt(r.w - 2 * safePt)}" height="${fmt(r.h - 2 * safePt)}" class="wire-safe"/>`;
     for (const i of items) if (i.kind !== 'TextFrame') svg += `<polygon points="${pts(i)}" class="${i.placed && i.placed.length ? 'wire-art' : 'wire-shape'}${i.hidden ? ' wire-hidden' : ''}"/>`;
     const frames = pg.frameIds.map(id => scan.items.get(id));
     frames.forEach((f, idx) => {
@@ -171,7 +179,7 @@
       svg += `<polygon points="${pts(f)}" class="wire-frame wire-${f.support}${f.hidden ? ' wire-hidden' : ''}" data-frame="${idx}"/>`;
       svg += `<text x="${fmt(f.bbox.x + f.bbox.w / 2)}" y="${fmt(f.bbox.y + f.bbox.h / 2)}" font-size="${fmt(fs)}" class="wire-label" text-anchor="middle" dominant-baseline="central">${idx + 1}</text>`;
     });
-    return svg + '</svg>';
+    return svg + '</svg><p class="insp-note">Dashed red: bleed from the file. Dashed green: your safe margin.</p>';
   }
 
   function framesTableHtml(pg) {
@@ -284,5 +292,7 @@
   }
   document.addEventListener('DOMContentLoaded', init);
 
-  PW.inspector = { start, reset, onPdfReady, goToPage };
+  function refresh() { if (ctx) renderPageExplorer(); }
+
+  PW.inspector = { start, reset, onPdfReady, goToPage, refresh };
 })(typeof window !== 'undefined' ? window : globalThis);

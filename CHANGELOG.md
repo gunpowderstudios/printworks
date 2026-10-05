@@ -2,6 +2,21 @@
 
 All notable changes to Printworks are recorded here.
 
+## 1.6 — 2026-10-05
+
+### Added
+- **Font map**: choose a new font family and style for each font in the file, or fill the table from a typography direction as a starting point. It is applied to paragraph styles, character styles and to text where the font was set directly, so no text keeps the old font. Only font family and style are changed.
+- **Inheritance protection**: a style that inherits its font from a remapped parent is held at its original font unless it is mapped itself.
+- **Verified export**: the new IDML is re-read and checked before download (only font settings changed, text and structure identical, every run resolves to the intended font, `mimetype` first and stored). A failed check withholds the download.
+- **Print checks** with a saved printer profile: minimum text size, thin or light weights at small sizes, small text in more than one ink, small reversed-out text, and text frames past the trim or inside the safe margin. Checks run live against the new fonts as you edit the map.
+- **Swatch handling**: colours are read from `Resources/Graphic.xml` (CMYK, tints, gradients, registration) so ink count and reversed-out text can be detected. Colours are never changed in the export; on-screen RGB is an approximation.
+- Page explorer now draws the file's bleed and your safe margin.
+- Document bleed and page margins are read from the file.
+
+### Notes
+- Distance to the trim edge is measured from the text frame, not the text inside it. Measuring text needs the page renderer.
+- The existing Style Lab roles and typography-direction export are unchanged.
+
 ## 1.5 — 2026-10-05
 
 ### Added

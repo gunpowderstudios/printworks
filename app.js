@@ -35,7 +35,7 @@ function init(){
 }
 async function handleFile(file){
  if(!file)return;
- if(!file.name.toLowerCase().endsWith('.idml'))return alert('Version 1.5 currently accepts IDML files, with an optional companion PDF.');
+ if(!file.name.toLowerCase().endsWith('.idml'))return alert('Version 1.6 currently accepts IDML files, with an optional companion PDF.');
  try{
   $('#healthBadge').textContent='Reading…';
   const zip=await JSZip.loadAsync(file);

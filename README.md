@@ -1,8 +1,47 @@
 # Printworks
 
-**Version 1.5**
+**Version 1.6**
 
-Printworks is a browser-based typography exploration tool for Adobe InDesign IDML documents.
+Printworks is a browser-based typography checker for print-ready InDesign files. Open an IDML (and optionally its PDF), try new fonts, and see whether the change would cause problems before anything goes to your printer. Nothing is uploaded; everything runs in your browser.
+
+Made for people who design card games, board games, boxes and books in InDesign and want to explore type safely, especially across many pages.
+
+**What it does**
+
+- Reads how an IDML is built (pages, text frames, stories, styles, fonts, colours) and reports what it can and cannot handle.
+- Maps every font in the file to a new one, including text where the font was set directly, and exports a revised IDML that changes font family and style and nothing else.
+- Checks the result against your printer's rules: minimum text size, thin weights, small text in several inks, small reversed-out text, and text frames near the trim.
+- With the companion PDF, finds text that is already cut off in InDesign.
+
+**What it is not**
+
+- It is not a replacement for InDesign: it does not edit layouts or make the final PDF.
+- It does not reproduce InDesign's text engine exactly, so its checks are warnings, not proof.
+- It does not draw the pages yet (planned).
+
+## v1.6 font map, print checks and verified export
+
+**Font map.** Each font in the file (family and style) can be mapped to a new family and style. The change is applied everywhere the font can be set:
+
+- paragraph and character styles,
+- formatting on a paragraph or character range in the stories (text where the font was set directly, which styles alone would miss).
+
+A style that merely *inherits* its font from a remapped parent is held at its original font unless you map it too, so nothing changes by accident. Only font family and font style are written. The XML is edited as text rather than re-serialised, so every other byte is untouched.
+
+**Verified export.** Before offering the download, Printworks re-reads the new package and checks that: only font settings changed (it compares the files with font settings removed), text and paragraph structure are identical, every text run resolves to the font you chose, and the package follows the IDML rules (`mimetype` first and stored). If a check fails, no download is offered.
+
+**Print checks.** Enter your printer's specs once (saved in this browser). The starting values are common rules of thumb, not a standard. Sizes, weights and ink colours are exact, read straight from the file; colours stay as swatch references and are never converted. Distance to the trim edge is measured from the frame box, not from the text inside it, because measuring real text needs the page renderer. The page explorer draws the file's own bleed and your safe margin.
+
+**Fonts must match InDesign's names.** The export writes the family and style names you type. If InDesign does not have a font installed with exactly that name and style, it shows the pink missing-font substitution. Printworks warns about families that are not in the file's own font list.
+
+Tests (optional, Node only):
+
+```
+cd tests && npm install
+node run-model-test.js file.idml file.pdf   # structure report + PDF check
+node fontmap-test.js file.idml              # font map: synthetic cases, then your file
+node printcheck-test.js file.idml           # print checks
+```
 
 ## v1.5 structure inspector
 

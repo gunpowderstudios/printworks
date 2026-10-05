@@ -2,6 +2,13 @@
   "name": "printworks-tests",
   "private": true,
   "description": "Node-only checks for js/idml-model.js. Not needed to run Printworks itself.",
-  "scripts": { "test": "node run-model-test.js" },
-  "devDependencies": { "@xmldom/xmldom": "^0.8.10", "jszip": "^3.10.1" }
+  "scripts": {
+    "model": "node run-model-test.js",
+    "fontmap": "node fontmap-test.js",
+    "printcheck": "node printcheck-test.js"
+  },
+  "devDependencies": {
+    "@xmldom/xmldom": "^0.8.10",
+    "jszip": "^3.10.1"
+  }
 }

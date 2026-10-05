@@ -1,5 +1,5 @@
 /*
- * Printworks IDML model (v1.5)
+ * Printworks IDML model (v1.6)
  *
  * Pure parsing / analysis code: no DOM access beyond DOMParser, no UI.
  * Loaded as a classic script (window.PW.idml) so the app stays build-free and
@@ -112,6 +112,14 @@
     }
     return o;
   }
+  // Same fields as readLocal(), but from raw start-tag text + the text inside its <Properties> block.
+  function localFromText(startTag, propsXml) {
+    const a = attrsOf(startTag); const o = {};
+    for (const k in LOCAL_ATTRS) if (a[k] != null) o[LOCAL_ATTRS[k]] = a[k];
+    const f = /<AppliedFont\b[^>]*>([^<]*)<\/AppliedFont>/.exec(propsXml || ''); if (f) o.font = decodeXml(f[1]).trim();
+    const l = /<Leading\b[^>]*>([^<]*)<\/Leading>/.exec(propsXml || ''); if (l) o.leading = decodeXml(l[1]).trim();
+    return o;
+  }
   function readStyle(el) {
     const s = Object.assign({ self: attr(el, 'Self'), name: attr(el, 'Name') }, readLocal(el));
     const p = child(el, 'Properties');
@@ -144,7 +152,88 @@
     for (const s of chain.reverse()) for (const k of FIELDS) if (s[k] != null && s[k] !== '') out[k] = s[k];
     return out;
   }
+  // Full cascade: paragraph style < paragraph local < character style < run local.
+  function cascadeProps(tables, paraId, pLocal, charId, cLocal) {
+    const p = resolveStyle(tables.para, paraId, 'ParagraphStyle/', NORMAL_PARA);
+    const c = resolveStyle(tables.char, charId, 'CharacterStyle/', null);
+    pLocal = pLocal || {}; cLocal = cLocal || {};
+    const out = {};
+    for (const k of FIELDS) { const v = [cLocal[k], c[k], pLocal[k], p[k]].find(x => x != null && x !== ''); if (v != null) out[k] = v; }
+    return out;
+  }
   const isDefaultParaStyle = id => !id || /NormalParagraphStyle$|\[No paragraph style\]$/i.test(id);
+
+  /* ------------------------------------------------------------- swatches */
+  // Swatches come from Resources/Graphic.xml. Colours stay as swatch references in the IDML;
+  // the RGB values here are an on-screen approximation only.
+  function parseSwatches(xml) {
+    const map = new Map();
+    if (!xml) return map;
+    for (const m of String(xml).matchAll(/<Color\b[^>]*>/g)) {
+      const a = attrsOf(m[0]); if (!a.Self) continue;
+      map.set(a.Self, { type: 'color', id: a.Self, name: a.Name || a.Self, space: a.Space, model: a.Model, value: String(a.ColorValue || '').trim().split(/\s+/).map(Number) });
+    }
+    for (const m of String(xml).matchAll(/<Tint\b[^>]*>/g)) {
+      const a = attrsOf(m[0]); if (!a.Self) continue;
+      map.set(a.Self, { type: 'tint', id: a.Self, name: a.Name || a.Self, base: a.BaseColor, tint: Number(a.TintValue) });
+    }
+    for (const m of String(xml).matchAll(/<Gradient\b[^>]*>[\s\S]*?<\/Gradient>/g)) {
+      const a = attrsOf(m[0].match(/<Gradient\b[^>]*>/)[0]); if (!a.Self) continue;
+      const stops = Array.from(m[0].matchAll(/<GradientStop\b[^>]*>/g)).map(x => attrsOf(x[0]).StopColor).filter(Boolean);
+      map.set(a.Self, { type: 'gradient', id: a.Self, name: a.Name || a.Self, stops });
+    }
+    return map;
+  }
+  // Approximate CMYK -> sRGB by interpolating between the usual process-ink corner colours.
+  const CMY_CORNERS = { '000': [255, 255, 255], '100': [0, 174, 239], '010': [236, 0, 140], '001': [255, 242, 0],
+    '110': [46, 49, 146], '101': [0, 166, 81], '011': [237, 28, 36], '111': [58, 53, 54] };
+  function cmykToRgb(c, m, y, k) {
+    c = Math.min(1, Math.max(0, c)); m = Math.min(1, Math.max(0, m)); y = Math.min(1, Math.max(0, y)); k = Math.min(1, Math.max(0, k));
+    const out = [0, 0, 0];
+    for (const key in CMY_CORNERS) {
+      const w = (key[0] === '1' ? c : 1 - c) * (key[1] === '1' ? m : 1 - m) * (key[2] === '1' ? y : 1 - y);
+      for (let i = 0; i < 3; i++) out[i] += w * CMY_CORNERS[key][i];
+    }
+    const kk = 1 - k * (1 - 35 / 255);
+    return out.map(v => Math.round(v * kk));
+  }
+  const toHex = rgb => '#' + rgb.map(v => Math.max(0, Math.min(255, v)).toString(16).padStart(2, '0')).join('');
+  // -> { kind, rgb(hex), inks, reversed, name }.  inks = how many process inks the colour prints with.
+  function resolveSwatch(swatches, id, depth) {
+    depth = depth || 0;
+    const none = { kind: 'none', rgb: null, inks: 0, reversed: false, name: 'None' };
+    if (!id || /Swatch\/None$|^n$/.test(id) || depth > 4) return none;
+    const sw = swatches && swatches.get(id); if (!sw) return { kind: 'unknown', rgb: null, inks: null, reversed: false, name: String(id).split('/').pop() };
+    if (sw.type === 'color') {
+      if (sw.model === 'Registration') return { kind: 'registration', rgb: '#000000', inks: 4, reversed: false, name: sw.name };
+      if (sw.space === 'CMYK' && sw.value.length >= 4) {
+        const [c, m, y, k] = sw.value.map(v => v / 100);
+        const inks = sw.value.slice(0, 4).filter(v => v >= 0.5).length;
+        return { kind: sw.model === 'Spot' ? 'spot' : 'process', cmyk: sw.value.slice(0, 4), rgb: toHex(cmykToRgb(c, m, y, k)), inks: sw.model === 'Spot' ? 1 : inks, reversed: inks === 0, name: sw.name };
+      }
+      if (sw.space === 'RGB' && sw.value.length >= 3) return { kind: 'rgb', rgb: toHex(sw.value.slice(0, 3).map(Math.round)), inks: null, reversed: false, name: sw.name };
+      return { kind: 'other', rgb: null, inks: null, reversed: false, name: sw.name };
+    }
+    if (sw.type === 'tint') {
+      const base = resolveSwatch(swatches, sw.base, depth + 1); const t = (isFinite(sw.tint) ? sw.tint : 100) / 100;
+      if (base.cmyk) { const v = base.cmyk.map(x => x * t); const inks = v.filter(x => x >= 0.5).length;
+        return Object.assign({}, base, { kind: 'tint', cmyk: v, rgb: toHex(cmykToRgb(v[0] / 100, v[1] / 100, v[2] / 100, v[3] / 100)), inks, reversed: inks === 0, name: sw.name }); }
+      return Object.assign({}, base, { name: sw.name });
+    }
+    if (sw.type === 'gradient') {
+      const stops = sw.stops.map(s => resolveSwatch(swatches, s, depth + 1));
+      return { kind: 'gradient', rgb: stops[0] ? stops[0].rgb : null, inks: Math.max(0, ...stops.map(s => s.inks || 0)), reversed: false, name: sw.name };
+    }
+    return none;
+  }
+  function parseDocPrefs(xml) {
+    const out = { bleed: null, slug: null };
+    const m = String(xml || '').match(/<DocumentPreference\b[^>]*>/);
+    if (!m) return out;
+    const a = attrsOf(m[0]); const n = k => (a[k] != null ? Number(a[k]) : null);
+    out.bleed = { top: n('DocumentBleedTopOffset'), bottom: n('DocumentBleedBottomOffset'), inside: n('DocumentBleedInsideOrLeftOffset'), outside: n('DocumentBleedOutsideOrRightOffset') };
+    return out;
+  }
 
   /* ------------------------------------------------------------- stories */
   function parseStory(text) {
@@ -293,7 +382,9 @@
       const tr = parseMatrix(attr(pg, 'ItemTransform'));
       const corners = [applyPt(tr, b[1], b[0]), applyPt(tr, b[3], b[2])];
       const rect = bboxOf(corners);
-      spread.pages.push({ id: attr(pg, 'Self'), name: attr(pg, 'Name'), bounds: b, transform: tr, rect,
+      const mp = child(pg, 'MarginPreference');
+      const margins = mp ? { top: Number(attr(mp, 'Top')), bottom: Number(attr(mp, 'Bottom')), left: Number(attr(mp, 'Left')), right: Number(attr(mp, 'Right')) } : null;
+      spread.pages.push({ id: attr(pg, 'Self'), name: attr(pg, 'Name'), bounds: b, transform: tr, rect, margins,
         widthPt: rect.w, heightPt: rect.h, widthMm: rect.w * 25.4 / 72, heightMm: rect.h * 25.4 / 72,
         master: attr(pg, 'AppliedMaster') });
     }
@@ -332,8 +423,10 @@
     const designmap = parseDesignMap(dm);
     const styles = parseStyles(await text('Resources/Styles.xml'));
     const fonts = parseFonts(await text('Resources/Fonts.xml'));
+    const swatches = parseSwatches(await text('Resources/Graphic.xml'));
+    const prefs = parseDocPrefs(await text('Resources/Preferences.xml'));
     const layerMap = new Map(designmap.layers.map(l => [l.Self, l]));
-    return { text, designmap, styles, fonts, layerMap };
+    return { text, designmap, styles, fonts, swatches, prefs, layerMap };
   }
 
   /* ------------------------------------------------------------ font usage */
@@ -511,7 +604,7 @@
     const report = {
       pages: pages.length, spreads: spreads.length, masterSpreads: masters.length, pagesPerSpread: perSpread,
       pageSizes: Array.from(sizeMap.values()).sort((a, b) => b.count - a.count),
-      layers: layerStats, frames: fstat, support, stories: sfeat, art,
+      layers: layerStats, frames: fstat, support, stories: sfeat, art, prefs: doc.prefs,
       text: Object.assign({ paragraphs: sfeat.paragraphs }, fontUse.totals), fonts: fontUse.list, warnings,
     };
     return { report, pages, spreads, masters, items, stories, framesByStory, textFrames };
@@ -570,6 +663,7 @@
   }
 
   PW.idml = { setParser, parseXml, parseDesignMap, parseFonts, parseStyles, parseStory, parseSpread, parseMatrix, mul, applyPt,
-    resolveStyle, cleanFontFamily, load, scan, compareWithPdf, normWords, classifyFrame };
+    resolveStyle, cascadeProps, localFromText, attrsOf, decodeXml, parseSwatches, resolveSwatch, cmykToRgb, parseDocPrefs,
+    cleanFontFamily, isDefaultParaStyle, NORMAL_PARA, load, scan, compareWithPdf, normWords, classifyFrame };
   if (typeof module !== 'undefined' && module.exports) module.exports = PW.idml;
 })(typeof window !== 'undefined' ? window : globalThis);
