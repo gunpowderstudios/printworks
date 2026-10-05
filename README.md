@@ -1,8 +1,26 @@
 # Printworks
 
-**Version 1.4**
+**Version 1.5**
 
 Printworks is a browser-based typography exploration tool for Adobe InDesign IDML documents.
+
+## v1.5 structure inspector
+
+Printworks now reads how an IDML is put together before it tries to draw it:
+
+- Pages come from `designmap.xml` in document order, with each page's real rectangle (its `GeometricBounds` transformed by its `ItemTransform`).
+- Text frames are found anywhere on a spread, including inside groups, with their transforms composed. Each frame is linked to its story through `ParentStory`, and threaded frames through `PreviousTextFrame` / `NextTextFrame`.
+- Stories are split into paragraphs at `<Br/>` and into runs, keeping paragraph style, character style and any formatting set directly on the text.
+- Every frame is rated **Ready**, **Approximate** or **Not supported yet** for the planned page renderer. This keeps results honest across card decks, boxes and books.
+- With a companion PDF, a text check compares each frame with the PDF page and flags text already cut off in InDesign.
+
+The model in `js/idml-model.js` has no UI code and also runs in Node:
+
+```
+cd tests && npm install && node run-model-test.js path/to/file.idml path/to/file.pdf
+```
+
+(The PDF step needs `pdftotext` from poppler.) The tests folder is optional; the app itself still needs no build step.
 
 ## v1.4
 

@@ -7,6 +7,8 @@
   <title>Printworks — IDML Typography Lab</title>
   <link rel="stylesheet" href="styles.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" defer></script>
+  <script src="js/idml-model.js" defer></script>
+  <script src="js/inspector.js" defer></script>
   <script src="app.js" defer></script>
 </head>
 <body>
@@ -18,7 +20,7 @@
         <span>Typography Lab</span>
       </div>
     </div>
-    <div class="version">v1.4</div>
+    <div class="version">v1.5</div>
   </header>
 
   <main>
@@ -91,6 +93,45 @@
         </div>
       </section>
 
+      <section id="inspector" class="inspector-section">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">STRUCTURE INSPECTOR</p>
+            <h2>How this file is built</h2>
+          </div>
+          <p>Printworks follows each page to its text frames, each frame to its story and each story to its styles, then reports what the upcoming page renderer can reproduce faithfully. Nothing leaves your browser.</p>
+        </div>
+        <div id="inspProgress" class="insp-progress hidden"><span id="inspProgressLabel">Reading document structure…</span><progress id="inspProgressBar" max="100" value="0"></progress></div>
+        <div id="inspectorBody" class="hidden">
+          <div class="panel insp-block">
+            <div class="panel-title"><span>Renderer readiness</span></div>
+            <div id="inspReadiness"></div>
+          </div>
+          <div class="insp-cols">
+            <div class="panel insp-block"><div class="panel-title"><span>Document</span></div><dl id="inspFacts" class="insp-facts"></dl></div>
+            <div class="panel insp-block"><div class="panel-title"><span>Findings</span></div><div id="inspFindings"></div></div>
+          </div>
+          <div class="panel insp-block"><div class="panel-title"><span>Fonts in use</span></div><div id="inspFonts"></div></div>
+          <div class="panel insp-block"><div class="panel-title"><span>PDF text check</span></div><div id="inspPdf"></div></div>
+          <div id="inspPageExplorer" class="panel insp-block">
+            <div class="panel-title">
+              <span>Page explorer</span>
+              <div class="insp-pager">
+                <button id="inspPagePrev" class="mini-btn" type="button" aria-label="Previous page">Prev</button>
+                <label class="insp-pagenum">Page <input id="inspPageNum" type="number" min="1" value="1"> of <span id="inspPageMax"></span></label>
+                <button id="inspPageNext" class="mini-btn" type="button" aria-label="Next page">Next</button>
+              </div>
+            </div>
+            <p id="inspPageInfo" class="insp-note"></p>
+            <div class="insp-explorer">
+              <div id="inspWire" class="insp-wirebox"></div>
+              <div id="inspFrames"></div>
+            </div>
+          </div>
+          <div class="insp-actions"><button id="inspJsonBtn" class="ghost" type="button">Download structure JSON</button></div>
+        </div>
+      </section>
+
       <section id="styleLab" class="style-lab">
         <div class="section-heading">
           <div>
@@ -147,7 +188,7 @@
 
     <section class="how">
       <div>
-        <p class="eyebrow">VERSION 1.4</p>
+        <p class="eyebrow">VERSION 1.5</p>
         <h2>What it does now</h2>
       </div>
       <div class="how-grid">
@@ -159,6 +200,6 @@
     <div id="lightbox" class="lightbox hidden" aria-hidden="true"><button id="lightboxClose" aria-label="Close preview">×</button><div class="lightbox-inner"><canvas id="lightboxCanvas"></canvas><div id="lightboxCaption"></div></div></div>
 </main>
 
-  <footer>Gunpowder Studios · Printworks v1.4</footer>
+  <footer>Gunpowder Studios · Printworks v1.5</footer>
 </body>
 </html>

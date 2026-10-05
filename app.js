@@ -15,7 +15,7 @@ function init(){
  ['dragleave','drop'].forEach(ev=>dz.addEventListener(ev,e=>{e.preventDefault();dz.classList.remove('drag')}));
  dz.addEventListener('drop',e=>handleFile(e.dataTransfer.files[0]));
  fi.onchange=e=>handleFile(e.target.files[0]);
- $('#newFileBtn').onclick=()=>{fi.value='';$('#pdfInput').value='';state.pdfFile=null;state.pdfDoc=null;state.selected=null;$('#pdfStatus').classList.add('hidden');$('#pdfBtn').textContent='Add PDF preview';$('#workspace').classList.add('hidden');$('.hero').classList.remove('hidden');window.scrollTo({top:0,behavior:'smooth'})};
+ $('#newFileBtn').onclick=()=>{fi.value='';$('#pdfInput').value='';state.pdfFile=null;state.pdfDoc=null;state.selected=null;$('#pdfStatus').classList.add('hidden');$('#pdfBtn').textContent='Add PDF preview';$('#workspace').classList.add('hidden');$('.hero').classList.remove('hidden');if(window.PW&&PW.inspector)PW.inspector.reset();window.scrollTo({top:0,behavior:'smooth'})};
  $('#exportBtn').onclick=exportIDML;
  $('#autoStyleBtn').onclick=()=>{
    const btn=$('#autoStyleBtn');
@@ -35,7 +35,7 @@ function init(){
 }
 async function handleFile(file){
  if(!file)return;
- if(!file.name.toLowerCase().endsWith('.idml'))return alert('Version 1.4 currently accepts IDML files, with an optional companion PDF.');
+ if(!file.name.toLowerCase().endsWith('.idml'))return alert('Version 1.5 currently accepts IDML files, with an optional companion PDF.');
  try{
   $('#healthBadge').textContent='Reading…';
   const zip=await JSZip.loadAsync(file);
@@ -47,6 +47,7 @@ async function handleFile(file){
   if(!state.designMap||!state.stylesXml)throw new Error('This does not look like a complete IDML package.');
   analyse();
   renderDocument();
+  if(window.PW&&PW.inspector)PW.inspector.start(state);
   $('.hero').classList.add('hidden');$('#workspace').classList.remove('hidden');
   $('#workspace').scrollIntoView({behavior:'smooth',block:'start'});
  }catch(err){console.error(err);alert('Printworks could not read this IDML. '+err.message)}
@@ -61,11 +62,16 @@ function attrValues(xml,attr){
  while((m=rx.exec(xml)))out.push(decodeXml(m[1]));
  return out;
 }
+function elementValues(xml,tag){
+ const rx=new RegExp('<'+tag+'\\b[^>]*>([^<]+)</'+tag+'>','g');const out=[];let m;
+ while((m=rx.exec(xml)))out.push(decodeXml(m[1]).trim());
+ return out;
+}
 function uniq(a){return [...new Set(a.filter(Boolean))]}
 function decodeXml(s){return s.replace(/&amp;/g,'&').replace(/&quot;/g,'"').replace(/&lt;/g,'<').replace(/&gt;/g,'>')}
 function analyse(){
  const all=[state.stylesXml,...state.stories.map(x=>x.text)].join('\\n');
- state.fonts=uniq([...attrValues(all,'AppliedFont'),...attrValues(all,'FontFamily')]).filter(x=>!/^\$ID/.test(x)).slice(0,40);
+ state.fonts=uniq([...attrValues(all,'AppliedFont'),...attrValues(all,'FontFamily'),...elementValues(all,'AppliedFont')].map(x=>window.PW&&PW.idml?PW.idml.cleanFontFamily(x):x)).filter(x=>!/^\$ID/.test(x)).slice(0,40);
  state.styleDefs=parseParagraphStyles(state.stylesXml);
  state.styles=state.styleDefs.map(x=>x.name).slice(0,80);
  autoAssignStyleRoles(false);
@@ -75,9 +81,16 @@ function analyse(){
  state.wordCount=state.stories.reduce((n,s)=>n+plainStoryText(s.text).trim().split(/\s+/).filter(Boolean).length,0);
  state.textSamples=state.stories.map(s=>plainStoryText(s.text)).filter(t=>t.trim()).slice(0,Math.max(1,state.pageTotal));
 }
+function orderedSpreads(){
+ const order=PW.idml.parseDesignMap(state.designMap).spreads;
+ if(!order.length)return state.spreads;
+ const byName=new Map(state.spreads.map(s=>[s.name,s]));
+ const ordered=order.map(n=>byName.get(n)).filter(Boolean);
+ return ordered.length===state.spreads.length?ordered:state.spreads;
+}
 function parsePageGeometry(){
  const pages=[];
- for(const spread of state.spreads){
+ for(const spread of orderedSpreads()){
   const tags=spread.text.match(/<Page\b[^>]*>/g)||[];
   for(const tag of tags){
     const bm=tag.match(/\bGeometricBounds="([^"]+)"/);
@@ -95,10 +108,7 @@ function parsePageGeometry(){
     });
   }
  }
- return pages.sort((a,b)=>{
-  const an=Number(a.name),bn=Number(b.name);
-  return Number.isFinite(an)&&Number.isFinite(bn)?an-bn:0;
- });
+ return pages;
 }
 function formatMm(n){
  const rounded=Math.round(n*10)/10;
@@ -343,6 +353,7 @@ async function handlePDF(file){
   $('#pdfStatus').innerHTML=`<strong>PDF preview:</strong> ${escapeHtml(file.name)} · ${doc.numPages} pages${mismatch?` <span class="warn">IDML has ${state.pageTotal} pages, so page matching may differ.</span>`:''}`;
   $('#pdfBtn').textContent='Replace PDF';
   await renderPdfGrid();
+  if(window.PW&&PW.inspector)PW.inspector.onPdfReady();
  }catch(err){console.error(err);alert('Printworks could not render this PDF. '+err.message);$('#pdfBtn').textContent='Add PDF preview'}
  finally{$('#pdfBtn').disabled=false}
 }

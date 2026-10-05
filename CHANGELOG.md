@@ -2,6 +2,25 @@
 
 All notable changes to Printworks are recorded here.
 
+## 1.5 — 2026-10-05
+
+### Added
+- **Structure inspector**: a new section that follows every page to its text frames, every frame to its story, and every story to its styles. It works on any IDML (cards, boxes, books), not just one design.
+- **Renderer readiness report**: each text frame is rated Ready, Approximate or Not supported yet for the upcoming page renderer, with the reason (threaded text, multiple columns, non-rectangular frames, tables, footnotes, anchored objects, scaled or skewed frames).
+- **Page explorer**: a wireframe of each page's frames (with real rotation and position) beside a table of frame, story, paragraph styles, text, angle and vertical alignment.
+- **PDF text check**: when a companion PDF is added, Printworks checks that each frame's text appears on the matching PDF page and flags text that is already cut off (overset) in InDesign, so a new font is not blamed for it later.
+- **Download structure JSON** for debugging or for use in other tools.
+- New `js/idml-model.js`: a UI-free IDML model (designmap order, page rectangles, transform composition through groups, stories, style cascade, `Fonts.xml`). It also loads in Node; see `tests/`.
+
+### Fixed
+- Font detection found no fonts in files where InDesign writes `AppliedFont` as a child element. Fonts are now read from styles, text and `Fonts.xml`, with their save-time status (installed, substituted, missing).
+- Page order now follows `designmap.xml` instead of sorting by page name, which breaks when sections restart numbering or use labels such as `i` or `A-1`.
+
+### Known limitations
+- Text whose font is set directly on the text (not through a paragraph style) is not changed by Apply typography. The inspector reports how much of a document this affects. A font-mapping approach is planned.
+- Style Lab still hides the default paragraph styles.
+- Nothing is rendered from IDML text yet; that is the next step.
+
 ## 1.4 — 2026-10-05
 
 ### Added
