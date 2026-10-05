@@ -16,12 +16,17 @@ function init(){
  dz.addEventListener('drop',e=>handleFile(e.dataTransfer.files[0]));
  fi.onchange=e=>handleFile(e.target.files[0]);
  $('#newFileBtn').onclick=()=>{fi.value='';$('#pdfInput').value='';state.pdfFile=null;state.pdfDoc=null;$('#pdfStatus').classList.add('hidden');$('#pdfBtn').textContent='Add PDF preview';$('#workspace').classList.add('hidden');$('.hero').classList.remove('hidden');window.scrollTo({top:0,behavior:'smooth'})};
- $('#exportBtn').onclick=exportIDML;\n $('#pdfBtn').onclick=()=>$('#pdfInput').click();\n $('#pdfInput').onchange=e=>handlePDF(e.target.files[0]);\n $('#lightboxClose').onclick=closeLightbox;\n $('#lightbox').onclick=e=>{if(e.target.id==='lightbox')closeLightbox()};\n document.addEventListener('keydown',e=>{if(e.key==='Escape')closeLightbox()});
+ $('#exportBtn').onclick=exportIDML;
+ $('#pdfBtn').onclick=()=>$('#pdfInput').click();
+ $('#pdfInput').onchange=e=>handlePDF(e.target.files[0]);
+ $('#lightboxClose').onclick=closeLightbox;
+ $('#lightbox').onclick=e=>{if(e.target.id==='lightbox')closeLightbox()};
+ document.addEventListener('keydown',e=>{if(e.key==='Escape')closeLightbox()});
  renderMoods();
 }
 async function handleFile(file){
  if(!file)return;
- if(!file.name.toLowerCase().endsWith('.idml'))return alert('Version 1.0 currently accepts IDML files only.');
+ if(!file.name.toLowerCase().endsWith('.idml'))return alert('Version 1.1 currently accepts IDML files, with an optional companion PDF.');
  try{
   $('#healthBadge').textContent='Reading…';
   const zip=await JSZip.loadAsync(file);
@@ -50,7 +55,8 @@ function attrValues(xml,attr){
 function uniq(a){return [...new Set(a.filter(Boolean))]}
 function decodeXml(s){return s.replace(/&amp;/g,'&').replace(/&quot;/g,'"').replace(/&lt;/g,'<').replace(/&gt;/g,'>')}
 function analyse(){
- const all=[state.stylesXml,...state.stories.map(x=>x.text)].join('\n');
+ const all=[state.stylesXml,...state.stories.map(x=>x.text)].join('
+');
  state.fonts=uniq([...attrValues(all,'AppliedFont'),...attrValues(all,'FontFamily')]).filter(x=>!/^\$ID/.test(x)).slice(0,40);
  state.styles=uniq(attrValues(state.stylesXml,'Name')).filter(x=>x&&x!=='[No Paragraph Style]'&&x!=='[Basic Paragraph]').slice(0,80);
  const pageMatches=state.spreads.flatMap(s=>[...s.text.matchAll(/<Page\b/g)]);
@@ -79,7 +85,49 @@ function renderDocument(){
    return `<article class="page-card"><span class="page-num">${i+1}</span><h4>${escapeHtml(head||'Page '+(i+1))}</h4><p>${escapeHtml(body)}</p><div class="page-lines"><i></i><i></i><i></i></div></article>`;
  }).join('');
 }
-async function getPdfJs(){\n if(window.pdfjsLib)return window.pdfjsLib;\n const mod=await import('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.min.mjs');\n mod.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.worker.min.mjs';\n return mod;\n}\nasync function handlePDF(file){\n if(!file)return;\n if(!file.name.toLowerCase().endsWith('.pdf'))return alert('Please choose a PDF file.');\n try{\n  $('#pdfBtn').disabled=true;$('#pdfBtn').textContent='Rendering…';\n  const pdfjs=await getPdfJs();\n  const data=new Uint8Array(await file.arrayBuffer());\n  const doc=await pdfjs.getDocument({data}).promise;\n  state.pdfFile=file;state.pdfDoc=doc;\n  $('#pdfStatus').classList.remove('hidden');\n  const mismatch=state.pageTotal&&doc.numPages!==state.pageTotal;\n  $('#pdfStatus').innerHTML=`<strong>PDF preview:</strong> ${escapeHtml(file.name)} · ${doc.numPages} pages${mismatch?` <span class="warn">IDML has ${state.pageTotal} pages, so page matching may differ.</span>`:''}`;\n  $('#pdfBtn').textContent='Replace PDF';\n  await renderPdfGrid();\n }catch(err){console.error(err);alert('Printworks could not render this PDF. '+err.message);$('#pdfBtn').textContent='Add PDF preview'}\n finally{$('#pdfBtn').disabled=false}\n}\nasync function renderPdfGrid(){\n if(!state.pdfDoc)return;\n const grid=$('#pageGrid');grid.innerHTML='';\n for(let i=1;i<=state.pdfDoc.numPages;i++){\n  const card=document.createElement('button');card.className='pdf-page-card';card.type='button';card.innerHTML=`<span class="pdf-page-label">Page ${i}</span><canvas></canvas>`;grid.appendChild(card);\n  card.onclick=()=>openPdfPage(i);\n  const page=await state.pdfDoc.getPage(i);const base=page.getViewport({scale:1});const target=210;const scale=target/base.width;const viewport=page.getViewport({scale});\n  const canvas=card.querySelector('canvas');canvas.width=Math.ceil(viewport.width);canvas.height=Math.ceil(viewport.height);\n  await page.render({canvasContext:canvas.getContext('2d'),viewport}).promise;\n }\n $('#pageCount').textContent=state.pdfDoc.numPages+' PDF pages';\n}\nasync function openPdfPage(num){\n if(!state.pdfDoc)return;\n const box=$('#lightbox'),canvas=$('#lightboxCanvas');box.classList.remove('hidden');box.setAttribute('aria-hidden','false');$('#lightboxCaption').textContent='Page '+num+' · '+state.pdfFile.name;\n const page=await state.pdfDoc.getPage(num);const base=page.getViewport({scale:1});const maxW=Math.min(window.innerWidth-100,1100),maxH=window.innerHeight-130;const scale=Math.min(maxW/base.width,maxH/base.height,2);const viewport=page.getViewport({scale});\n canvas.width=Math.ceil(viewport.width);canvas.height=Math.ceil(viewport.height);await page.render({canvasContext:canvas.getContext('2d'),viewport}).promise;\n}\nfunction closeLightbox(){const box=$('#lightbox');box.classList.add('hidden');box.setAttribute('aria-hidden','true')}\nfunction renderMoods(){
+async function getPdfJs(){
+ if(window.pdfjsLib)return window.pdfjsLib;
+ const mod=await import('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.min.mjs');
+ mod.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.worker.min.mjs';
+ return mod;
+}
+async function handlePDF(file){
+ if(!file)return;
+ if(!file.name.toLowerCase().endsWith('.pdf'))return alert('Please choose a PDF file.');
+ try{
+  $('#pdfBtn').disabled=true;$('#pdfBtn').textContent='Rendering…';
+  const pdfjs=await getPdfJs();
+  const data=new Uint8Array(await file.arrayBuffer());
+  const doc=await pdfjs.getDocument({data}).promise;
+  state.pdfFile=file;state.pdfDoc=doc;
+  $('#pdfStatus').classList.remove('hidden');
+  const mismatch=state.pageTotal&&doc.numPages!==state.pageTotal;
+  $('#pdfStatus').innerHTML=`<strong>PDF preview:</strong> ${escapeHtml(file.name)} · ${doc.numPages} pages${mismatch?` <span class="warn">IDML has ${state.pageTotal} pages, so page matching may differ.</span>`:''}`;
+  $('#pdfBtn').textContent='Replace PDF';
+  await renderPdfGrid();
+ }catch(err){console.error(err);alert('Printworks could not render this PDF. '+err.message);$('#pdfBtn').textContent='Add PDF preview'}
+ finally{$('#pdfBtn').disabled=false}
+}
+async function renderPdfGrid(){
+ if(!state.pdfDoc)return;
+ const grid=$('#pageGrid');grid.innerHTML='';
+ for(let i=1;i<=state.pdfDoc.numPages;i++){
+  const card=document.createElement('button');card.className='pdf-page-card';card.type='button';card.innerHTML=`<span class="pdf-page-label">Page ${i}</span><canvas></canvas>`;grid.appendChild(card);
+  card.onclick=()=>openPdfPage(i);
+  const page=await state.pdfDoc.getPage(i);const base=page.getViewport({scale:1});const target=210;const scale=target/base.width;const viewport=page.getViewport({scale});
+  const canvas=card.querySelector('canvas');canvas.width=Math.ceil(viewport.width);canvas.height=Math.ceil(viewport.height);
+  await page.render({canvasContext:canvas.getContext('2d'),viewport}).promise;
+ }
+ $('#pageCount').textContent=state.pdfDoc.numPages+' PDF pages';
+}
+async function openPdfPage(num){
+ if(!state.pdfDoc)return;
+ const box=$('#lightbox'),canvas=$('#lightboxCanvas');box.classList.remove('hidden');box.setAttribute('aria-hidden','false');$('#lightboxCaption').textContent='Page '+num+' · '+state.pdfFile.name;
+ const page=await state.pdfDoc.getPage(num);const base=page.getViewport({scale:1});const maxW=Math.min(window.innerWidth-100,1100),maxH=window.innerHeight-130;const scale=Math.min(maxW/base.width,maxH/base.height,2);const viewport=page.getViewport({scale});
+ canvas.width=Math.ceil(viewport.width);canvas.height=Math.ceil(viewport.height);await page.render({canvasContext:canvas.getContext('2d'),viewport}).promise;
+}
+function closeLightbox(){const box=$('#lightbox');box.classList.add('hidden');box.setAttribute('aria-hidden','true')}
+function renderMoods(){
  $('#moodGrid').innerHTML=moods.map(m=>`<article class="mood-card ${m.class}" data-id="${m.id}">
   <div class="mood-sample"><div><div class="mood-kicker">PRINTWORKS / ${m.name}</div><div class="mood-head">${m.sample}</div><div class="mood-body">${m.bodySample}</div></div></div>
   <div class="mood-meta"><strong>${m.name}</strong><span>${m.head} · ${m.body}</span></div>
