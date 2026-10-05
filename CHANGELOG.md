@@ -2,6 +2,17 @@
 
 All notable changes to Printworks are recorded here.
 
+## 1.3.3 — 2026-10-05
+
+### Added
+- IDML page thumbnails now use each page's real `GeometricBounds` aspect ratio.
+- Detected page dimensions are shown on IDML-only thumbnails in millimetres.
+- Supports square cards, portrait pages, landscape pages and mixed page sizes.
+
+### Verified
+- Tested against the uploaded Deck of Dungeon IDML: 141.732 × 141.732 pt = 50 × 50 mm square cards.
+
+
 ## 1.3.2 — 2026-10-05
 
 ### Improved
