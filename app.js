@@ -69,8 +69,8 @@ function analyse(){
  state.styleDefs=parseParagraphStyles(state.stylesXml);
  state.styles=state.styleDefs.map(x=>x.name).slice(0,80);
  autoAssignStyleRoles(false);
- const pageMatches=state.spreads.flatMap(s=>[...s.text.matchAll(/<Page\b/g)]);
- state.pageTotal=pageMatches.length;
+ state.pageGeometry=parsePageGeometry();
+ state.pageTotal=state.pageGeometry.length;
  state.storyTotal=state.stories.length;
  state.wordCount=state.stories.reduce((n,s)=>n+plainStoryText(s.text).trim().split(/\s+/).filter(Boolean).length,0);
  state.textSamples=state.stories.map(s=>plainStoryText(s.text)).filter(t=>t.trim()).slice(0,Math.max(1,state.pageTotal));
