@@ -17,7 +17,13 @@ function init(){
  fi.onchange=e=>handleFile(e.target.files[0]);
  $('#newFileBtn').onclick=()=>{fi.value='';$('#pdfInput').value='';state.pdfFile=null;state.pdfDoc=null;$('#pdfStatus').classList.add('hidden');$('#pdfBtn').textContent='Add PDF preview';$('#workspace').classList.add('hidden');$('.hero').classList.remove('hidden');window.scrollTo({top:0,behavior:'smooth'})};
  $('#exportBtn').onclick=exportIDML;
- $('#autoStyleBtn').onclick=()=>{autoAssignStyleRoles(true);renderStyleLab()};
+ $('#autoStyleBtn').onclick=()=>{
+   const btn=$('#autoStyleBtn');
+   const count=autoAssignStyleRoles(true);
+   renderStyleLab();
+   btn.textContent=count?'Auto tidy · '+count+' assigned':'No matches found';
+   setTimeout(()=>btn.textContent='Auto tidy',1800);
+ };
  $('#tidyExportBtn').onclick=exportTidiedIDML;
  $('#pdfBtn').onclick=()=>$('#pdfInput').click();
  $('#pdfInput').onchange=e=>handlePDF(e.target.files[0]);
@@ -114,26 +120,43 @@ function parseParagraphStyles(xml){
   })).filter(s=>s.name!=='[No Paragraph Style]'&&s.name!=='[Basic Paragraph]');
  }catch(e){console.warn('Could not parse paragraph styles',e);return []}
 }
-function guessStyleRole(name){
- const n=name.toLowerCase();
- if(/card.*(head|title)|(head|title).*card/.test(n))return 'card-heading';
- if(/item.*(head|title)|(head|title).*item/.test(n))return 'item-heading';
- if(/item.*(desc|description|copy)|description/.test(n))return 'item-description';
- if(/caption|folio|credit|small/.test(n))return 'caption';
- if(/rule.*note|note|tip|warning|callout/.test(n))return 'rules-note';
- if(/section|chapter|heading ?1|head ?1|^heading$|^title$/.test(n))return 'section-heading';
- if(/body|normal|copy|paragraph|text/.test(n))return 'body';
+function guessStyleRole(style){
+ const n=String(style.name||'').toLowerCase().replace(/[_-]+/g,' ');
+ const size=Number(style.size)||0;
+ const bold=/bold|black|heavy|semibold|demi/i.test(style.fontStyle||'');
+ if(/card.*(head|heading|title|name)|(head|heading|title|name).*card/.test(n))return 'card-heading';
+ if(/item.*(head|heading|title|name)|(head|heading|title|name).*item/.test(n))return 'item-heading';
+ if(/item.*(desc|description|copy|text)|description|flavour|flavor/.test(n))return 'item-description';
+ if(/caption|folio|credit|footer|small|figure|fig\.?/.test(n))return 'caption';
+ if(/rule.*note|note|tip|warning|callout|important|remember|example/.test(n))return 'rules-note';
+ if(/section|chapter|subhead|sub head|heading ?[123]|head ?[123]|^heading$|^title$|main head/.test(n))return 'section-heading';
+ if(/body|normal|copy|paragraph|para|main text|body text|rules text|description text/.test(n))return 'body';
+ if(size>=18&&bold)return 'section-heading';
+ if(size>=13&&bold)return 'item-heading';
+ if(size>0&&size<=9)return 'caption';
  return 'none';
 }
 function autoAssignStyleRoles(reset){
- if(reset)state.styleRoles={};
+ if(reset){
+   state.styleRoles={};
+   state.styleMasters={};
+ }
+ let assignedCount=0;
  for(const s of state.styleDefs){
-  if(reset||!state.styleRoles[s.self])state.styleRoles[s.self]=guessStyleRole(s.name);
+  if(reset||!state.styleRoles[s.self]){
+    const role=guessStyleRole(s);
+    state.styleRoles[s.self]=role;
+    if(role!=='none')assignedCount++;
+  }
  }
  for(const role of STYLE_ROLES.filter(r=>r.id!=='none')){
   const assigned=state.styleDefs.filter(s=>state.styleRoles[s.self]===role.id);
-  if(assigned.length&&!state.styleMasters[role.id])state.styleMasters[role.id]=assigned[0].self;
+  if(assigned.length){
+    const best=[...assigned].sort((a,b)=>(Number(b.size)||0)-(Number(a.size)||0))[0];
+    state.styleMasters[role.id]=best.self;
+  }
  }
+ return assignedCount;
 }
 function stylePreviewText(role){
  return ({
