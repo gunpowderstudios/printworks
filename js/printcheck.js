@@ -17,7 +17,7 @@
   const MM = 72 / 25.4;
   const STORE_KEY = 'printworks.printerProfile';
 
-  const DEFAULT_PROFILE = { minText: 5, lightMin: 8, multiInkMin: 8, reverseMin: 6, safeMm: 3, bleedMm: 3, minPpi: 300, allowRgb: false };
+  const DEFAULT_PROFILE = { minText: 5, lightMin: 8, multiInkMin: 8, reverseMin: 6, safeMm: 3, bleedMm: 3, minPpi: 300, allowRgb: false, allowSpot: false, maxInk: 300 };
   const LIGHT_RE = /\b(thin|hairline|extra[- ]?light|ultra[- ]?light|light)\b/i;
 
   function loadProfile() {

@@ -11,13 +11,22 @@ All notable changes to Printworks are recorded here.
 - **Copy summary** and **Download report (JSON)** for the preflight, to send to a printer or keep.
 - Practical hint for missing bleed: where to switch it on in InDesign's PDF export.
 
+- **Colours used**: swatches of every colour actually painted (a colour that is set but never used is not counted), grouped as spot, registration, RGB and Lab, gradients, CMYK builds, grays and images by colour space. Spot swatches are worked out from the colour's own tint transform (including PostScript and sampled functions). Colours over your ink limit are marked.
+- **One colour verdict**: "All colour is CMYK or grayscale", or exactly where RGB or Lab is hiding: images, text and artwork, gradients and patterns, and the page blending space.
+- **Spot colours and registration**: spot colours listed with tints and pages (flagged unless your profile says the job uses them); registration colour flagged; overprint reported.
+- **Total ink** in text and artwork, against a new "maximum total ink" setting.
+- **Page map**: every page at a glance, marking spot, RGB and registration colour.
+- **Colours in the layout** (IDML): swatches used on objects and text, with pages, plus warnings for RGB swatches and registration.
+- Profile gains "maximum total ink" and "this job uses spot colours".
+- `tests/fixtures/colour-test.pdf`: a small PDF with spot, registration, RGB, gradients and overprint, to try the checker.
+
 ### Changed
 - Start-screen wording now says what the app is: a PDF preflight and typography checker. New page title, topbar subtitle, introduction and "What it does" cards.
 
 ### Notes
 - Checked against poppler on a 320-page PDF: 656 of 656 image placements matched, resolution within 1%, font embedding agreed. The minified browser build of pdf-lib gives the same results.
 - New CDN script: pdf-lib from jsDelivr.
-- Not checked: total ink coverage, overprint and trapping, transparency flattening, image content. Images inside tiling patterns are not found.
+- Not checked: ink coverage inside images, trapping, transparency flattening, image content. Overprint is reported, not previewed.
 
 ## 1.6 — 2026-10-05
 

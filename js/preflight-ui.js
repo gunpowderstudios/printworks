@@ -46,6 +46,37 @@
     } catch (e) { return null; }
   }
 
+  /* ---- colours used, in the spirit of a separations list */
+  function coloursHtml(res, profile) {
+    const CU = PW.colourUI;
+    const cols = res.colours.map(c => Object.assign({}, c, { hot: c.kind === 'cmyk' && c.tac != null && profile.maxInk > 0 && c.tac > profile.maxInk + 0.5 }));
+    const of = f => cols.filter(f);
+    const spot = of(c => c.kind === 'spot'), reg = of(c => c.kind === 'registration'), bad = of(c => c.kind === 'rgb' || c.kind === 'lab');
+    const grads = of(c => c.kind === 'gradient'), gray = of(c => c.kind === 'gray');
+    const cmyk = of(c => c.kind === 'cmyk').sort((a, b) => (b.hot - a.hot) || b.pages.length - a.pages.length || b.uses - a.uses);
+    const group = (title, note, inner) => inner ? `<div class="pf-cgroup"><h4>${title}${note ? ` <span class="insp-note">${note}</span>` : ''}</h4>${inner}</div>` : '';
+    const shown = cmyk.slice(0, 16), more = cmyk.slice(16);
+    const imgRows = res.imageColour.map(x => `<li class="pf-imgrow${x.family === 'RGB' || x.family === 'Lab' ? ' is-problem' : ''}"><b>${esc(x.family === 'Spot' ? 'Spot / DeviceN' : x.family)}</b><span>${num(x.placements)} placement${x.placements === 1 ? '' : 's'} of ${num(x.images)} image${x.images === 1 ? '' : 's'} · ${num(x.pages.length)} page${x.pages.length === 1 ? '' : 's'}</span></li>`).join('');
+    const blend = res.blend; const blendTxt = blend.rgb ? `RGB on ${num(blend.rgb)} page${blend.rgb === 1 ? '' : 's'}` : blend.cmyk ? `CMYK on ${num(blend.cmyk)} page${blend.cmyk === 1 ? '' : 's'}` : 'not set';
+    return `<section class="pf-colours"><h3>Colours used</h3>
+      <p class="insp-note">Every colour actually painted in text and artwork, listed the way a separations check would. Swatches are on-screen approximations; the printed colour depends on the press and paper.</p>
+      ${group('Spot colours', 'print as their own plates', spot.length ? CU.list(spot, { pageButtons: 8 }) : '')}
+      ${group('Registration', 'prints on every plate', reg.length ? CU.list(reg, { pageButtons: 8 }) : '')}
+      ${group('RGB and Lab', 'not print colours', bad.length ? CU.list(bad.map(c => Object.assign({}, c, { problem: !profile.allowRgb })), { pageButtons: 8 }) : '')}
+      ${group('Gradients', '', grads.length ? CU.list(grads.map(c => Object.assign({}, c, { problem: c.family === 'RGB' && !profile.allowRgb })), { pageButtons: 6 }) : '')}
+      ${group(`CMYK builds (${num(cmyk.length)})`, profile.maxInk ? `over ${profile.maxInk}% total ink are marked` : '', cmyk.length ? CU.list(shown, { pageButtons: 0 }) + (more.length ? `<details class="pf-more"><summary>${num(more.length)} more builds</summary>${CU.list(more, { pageButtons: 0 })}</details>` : '') : '')}
+      ${group('Grays', '', gray.length ? CU.list(gray, { pageButtons: 0 }) : '')}
+      ${group('Images', 'by colour space', imgRows ? `<ul class="pf-imglist">${imgRows}</ul>` : '')}
+      <p class="insp-note">Page blending space: <b>${esc(blendTxt)}</b>. Image ink and image content are not measured.</p></section>`;
+  }
+  function pageMapHtml(res, count) {
+    const f = res.pageFlags; if (!f.some(x => x.rgb || x.spot || x.reg)) return '<section class="pf-map"><h3>Page map</h3><p class="insp-note">No page has spot colour, registration or RGB on it.</p></section>';
+    const cell = (x, i) => { const cls = x.reg ? 'pm-reg' : x.rgb ? 'pm-rgb' : x.spot ? 'pm-spot' : ''; const why = [x.spot && 'spot colour', x.rgb && 'RGB', x.reg && 'registration colour'].filter(Boolean).join(', '); return `<button type="button" class="pm ${cls}" data-page="${i + 1}" title="Page ${i + 1}${why ? ': ' + why : ''}">${i + 1}</button>`; };
+    return `<section class="pf-map"><h3>Page map</h3><p class="insp-note">Every page at a glance. Click a page to open it.</p>
+      <div class="pm-legend"><span class="pm pm-spot">spot</span><span class="pm pm-rgb">RGB</span><span class="pm pm-reg">registration</span><span class="pm">clear</span></div>
+      <div class="pm-grid">${f.map(cell).join('')}</div></section>`;
+  }
+
   function render() {
     if (!facts) return;
     const profile = PW.printcheck.loadProfile();
@@ -59,6 +90,7 @@
     const real = facts.placements.filter(p => !p.mask && !p.softMask);
     const facts_ = [fact('Pages', num(facts.pageCount) + (media ? ' · ' + (media.w / MM).toFixed(1) + ' × ' + (media.h / MM).toFixed(1) + ' mm' : '')),
       fact('Fonts', num(new Set(facts.fonts.map(f => f.name)).size)), fact('Images', num(facts.images.filter(i => !i.mask).length) + ' (' + num(real.length) + ' placed)'),
+      fact('Colours', num(facts.colours.length) + (facts.spots.length ? ' · ' + num(facts.spots.length) + ' spot' : '')),
       fact('File', (fileInfo.size / 1e6).toFixed(1) + ' MB' + (facts.meta.version ? ' · PDF ' + esc(facts.meta.version) : '')),
       facts.meta.producer ? fact('Made with', esc(facts.meta.producer)) : ''].join('');
     const item = f => {
@@ -70,6 +102,8 @@
     body.innerHTML = `<div class="pf-verdict pf-v-${verdict.cls}"><h3>${esc(verdict.head)}</h3><p>${esc(verdict.sub)}</p></div>
       <dl class="insp-facts pf-facts">${facts_}</dl>
       ${attention.length ? `<ul class="pf-list">${attention.map(item).join('')}</ul>` : ''}
+      ${coloursHtml(result, profile)}
+      ${pageMapHtml(result, facts.pageCount)}
       ${passed.length ? `<details class="pf-passed"><summary>${passed.length} check${passed.length === 1 ? '' : 's'} passed</summary><ul class="pf-list">${passed.map(item).join('')}</ul></details>` : ''}
       <p class="insp-note"><b>Checked:</b> page size, trim and bleed boxes, font embedding, image colour and resolution, RGB in text and artwork, spot colours, PDF/X. <b>Not checked:</b> total ink coverage, overprint and trapping, transparency flattening, and how the images actually look. Your printer\u2019s own preflight has the final word.</p>
       <div class="insp-actions"><button id="pfCopyBtn" class="ghost" type="button">Copy summary</button> <button id="pfJsonBtn" class="ghost" type="button">Download report (JSON)</button></div>`;

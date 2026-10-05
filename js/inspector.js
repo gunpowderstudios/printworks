@@ -79,6 +79,7 @@
     $('#inspFacts').innerHTML = factsHtml(r);
     $('#inspFonts').innerHTML = fontsHtml(r);
     $('#inspFindings').innerHTML = findingsHtml(r);
+    renderColours(r);
     $('#inspPageMax').textContent = String(scan.pages.length);
     const num_ = $('#inspPageNum'); num_.max = String(scan.pages.length); num_.value = '1';
     renderPageExplorer();
@@ -119,6 +120,18 @@
       row('Tables / footnotes / anchored', `${r.stories.withTables} / ${r.stories.withFootnotes} / ${r.stories.withAnchored}`, !(r.stories.withTables || r.stories.withFootnotes || r.stories.withAnchored)),
       row('Placed artwork', r.art.placed ? `${num(r.art.placed)} (${linked ? num(linked) + ' linked' : ''}${linked && emb ? ', ' : ''}${emb ? num(emb) + ' embedded' : ''})` : '0', !r.art.placed),
     ].join('');
+  }
+
+  function renderColours(r) {
+    const el = $('#inspColours'); if (!el || !PW.colourUI) return;
+    const CU = PW.colourUI; const cols = r.colours || [];
+    if (!cols.length) { el.innerHTML = '<p class="insp-note">No colours found on objects or text.</p>'; return; }
+    const of = f => cols.filter(f); const grp = (t, n, items, pb) => items.length ? `<div class="pf-cgroup"><h4>${t}${n ? ` <span class="insp-note">${n}</span>` : ''}</h4>${CU.list(items, { pageButtons: pb })}</div>` : '';
+    el.innerHTML = grp('Spot colours', 'print as their own plates', of(c => c.kind === 'spot'), 6) + grp('Registration', 'prints on every plate', of(c => c.kind === 'registration'), 6)
+      + grp('RGB', 'not print colours', of(c => c.kind === 'rgb'), 6) + grp('Gradients', '', of(c => c.kind === 'gradient'), 4)
+      + grp('CMYK swatches', 'as used on objects and text', of(c => c.kind === 'cmyk').slice(0, 30), 0)
+      + '<p class="insp-note">Swatch colours are on-screen approximations. Colours set only by an object style, and colours inside placed images, are not listed.</p>';
+    el.querySelectorAll('[data-page]').forEach(b => b.onclick = () => goToPage(Number(b.dataset.page) - 1, true));
   }
 
   function fontsHtml(r) {

@@ -184,19 +184,9 @@
     }
     return map;
   }
-  // Approximate CMYK -> sRGB by interpolating between the usual process-ink corner colours.
-  const CMY_CORNERS = { '000': [255, 255, 255], '100': [0, 174, 239], '010': [236, 0, 140], '001': [255, 242, 0],
-    '110': [46, 49, 146], '101': [0, 166, 81], '011': [237, 28, 36], '111': [58, 53, 54] };
-  function cmykToRgb(c, m, y, k) {
-    c = Math.min(1, Math.max(0, c)); m = Math.min(1, Math.max(0, m)); y = Math.min(1, Math.max(0, y)); k = Math.min(1, Math.max(0, k));
-    const out = [0, 0, 0];
-    for (const key in CMY_CORNERS) {
-      const w = (key[0] === '1' ? c : 1 - c) * (key[1] === '1' ? m : 1 - m) * (key[2] === '1' ? y : 1 - y);
-      for (let i = 0; i < 3; i++) out[i] += w * CMY_CORNERS[key][i];
-    }
-    const kk = 1 - k * (1 - 35 / 255);
-    return out.map(v => Math.round(v * kk));
-  }
+  // CMYK -> sRGB approximation lives in colour.js (shared with the PDF preflight).
+  if (typeof module !== 'undefined' && module.exports && !PW.colour) require('./colour.js');
+  const cmykToRgb = (c, m, y, k) => PW.colour.cmykToRgb(c, m, y, k);
   const toHex = rgb => '#' + rgb.map(v => Math.max(0, Math.min(255, v)).toString(16).padStart(2, '0')).join('');
   // -> { kind, rgb(hex), inks, reversed, name }.  inks = how many process inks the colour prints with.
   function resolveSwatch(swatches, id, depth) {
@@ -601,8 +591,31 @@
       frames: textFrames.filter(f => f.layerId === l.Self).length }));
     if (layerStats.some(l => !l.visible)) warn('info', 'hidden-layers', 'Hidden layers: ' + layerStats.filter(l => !l.visible).map(l => l.name).join(', ') + '. Their items will not be drawn.');
 
+    // --- colours used in the layout (swatch references on objects and text)
+    const swUse = new Map();
+    const addUse = (id, pageIdx) => { if (!id || /Swatch\/None$/.test(id)) return; let u = swUse.get(id); if (!u) { u = { pages: new Set(), uses: 0 }; swUse.set(id, u); } u.uses++; if (pageIdx != null) u.pages.add(pageIdx); };
+    for (const it of items.values()) { if (it.hidden || it.kind === 'Group') continue; addUse(it.fill, it.pageIndex); addUse(it.stroke, it.pageIndex); }
+    for (const f of textFrames) {
+      if (f.hidden || f.pageIndex == null) continue; const st = stories.get(f.story); if (!st) continue; const got = new Set();
+      for (const p of st.paragraphs) for (const r of p.runs) {
+        if (!r.text.trim()) continue; const e = cascadeProps(doc.styles, p.styleId, p.local, r.charStyle, r.local);
+        if (e.fill && !got.has(e.fill)) { got.add(e.fill); addUse(e.fill, f.pageIndex); }
+      }
+    }
+    const KIND = { process: 'cmyk', tint: 'cmyk', spot: 'spot', rgb: 'rgb', registration: 'registration', gradient: 'gradient' };
+    const usedColours = Array.from(swUse.entries()).map(([id, u]) => {
+      const sw = resolveSwatch(doc.swatches, id); const kind = KIND[sw.kind] || 'other';
+      const tac = sw.cmyk ? Math.round(sw.cmyk.reduce((a, b) => a + b, 0) * 10) / 10 : null;
+      const values = sw.cmyk ? (v => 'C' + v[0] + ' M' + v[1] + ' Y' + v[2] + ' K' + v[3])(sw.cmyk.map(x => Math.round(x * 10) / 10)) : '';
+      return { id, name: sw.name, label: sw.name, kind, rgb: sw.rgb, cmyk: sw.cmyk || null, tac, values, pages: Array.from(u.pages).sort((a, b) => a - b), uses: u.uses, problem: kind === 'rgb' };
+    }).sort((a, b) => b.pages.length - a.pages.length || b.uses - a.uses);
+    const rgbUsed = usedColours.filter(c => c.kind === 'rgb'), spotUsed = usedColours.filter(c => c.kind === 'spot'), regUsed = usedColours.filter(c => c.kind === 'registration');
+    if (rgbUsed.length) warn('warn', 'rgb-swatches', rgbUsed.length + ' colour' + (rgbUsed.length === 1 ? ' is' : 's are') + ' defined in RGB and used in the layout: ' + rgbUsed.slice(0, 6).map(c => c.name).join(', ') + '. Convert to CMYK in InDesign unless your printer wants RGB.');
+    if (spotUsed.length) warn('info', 'spot-swatches', spotUsed.length + ' spot colour' + (spotUsed.length === 1 ? ' is' : 's are') + ' used: ' + spotUsed.slice(0, 6).map(c => c.name + ' (' + c.pages.length + ' page' + (c.pages.length === 1 ? '' : 's') + ')').join(', ') + '.');
+    if (regUsed.length) warn('warn', 'registration-swatch', 'The Registration colour is used on ' + regUsed.reduce((n, c) => n + c.pages.length, 0) + ' page(s). It prints on every plate and belongs on crop marks only.');
+
     const report = {
-      pages: pages.length, spreads: spreads.length, masterSpreads: masters.length, pagesPerSpread: perSpread,
+      colours: usedColours, pages: pages.length, spreads: spreads.length, masterSpreads: masters.length, pagesPerSpread: perSpread,
       pageSizes: Array.from(sizeMap.values()).sort((a, b) => b.count - a.count),
       layers: layerStats, frames: fstat, support, stories: sfeat, art, prefs: doc.prefs,
       text: Object.assign({ paragraphs: sfeat.paragraphs }, fontUse.totals), fonts: fontUse.list, warnings,

@@ -11,7 +11,8 @@ Made for people who design card games, board games, boxes and books in InDesign.
 - Page size, trim and bleed boxes, against the bleed your printer needs.
 - Fonts: every font embedded, no Type 3.
 - Images: colour space (RGB, CMYK, Lab, spot) and effective resolution of every placement.
-- RGB colour in text and vector artwork, spot colours, PDF/X output intent.
+- **Colour, the old-school way:** one clear verdict on whether everything is CMYK or grayscale, then the detail. RGB or Lab in images, text, artwork, gradients and the page blending space; spot colours (Pantone, foil, varnish) with their tints and the pages they are on; registration colour used by mistake; total ink in text and artwork against your limit; overprint.
+- **Colours used:** a swatch list of every colour actually painted (spot, CMYK builds, grays, gradients, images by colour space), and a page map showing which pages carry spot, RGB or registration colour.
 - With an IDML open as well: page count and trim size against the layout.
 
 **2. Explore typography** (needs the IDML)
@@ -36,7 +37,7 @@ The checker reads the PDF's structure with [pdf-lib](https://pdf-lib.js.org/) an
 
 It was checked against poppler's `pdfimages` and `pdffonts` on a real 320-page PDF: all 656 image placements matched, with effective resolution within 1%, and font embedding agreed. The minified browser build of pdf-lib gives identical results.
 
-**Not checked:** total ink coverage, overprint and trapping, transparency flattening, and how images actually look. Images painted through tiling patterns are not found. Password-protected PDFs cannot be read; export an unprotected copy. Images inside soft masks (drop shadows, feathering) are read but left out of the colour and resolution findings, because their resolution does not affect print quality.
+**Not checked:** ink coverage inside images, trapping, transparency flattening, and how images actually look. Overprint is reported, not previewed. Images painted through tiling patterns are not counted for resolution. Password-protected PDFs cannot be read; export an unprotected copy. Images inside soft masks (drop shadows, feathering) are read but left out of the colour and resolution findings, because their resolution does not affect print quality.
 
 **Libraries.** pdf-lib loads from jsDelivr, alongside JSZip and PDF.js from cdnjs. Only code is fetched; your files never leave the browser.
 
@@ -64,6 +65,11 @@ node fontmap-test.js file.idml              # font map: synthetic cases, then yo
 node printcheck-test.js file.idml           # print checks
 node preflight-test.js file.pdf             # PDF preflight (synthetic PDFs, then compared with poppler)
 PDFLIB_MIN=1 node preflight-test.js file.pdf  # same, against pdf-lib's minified browser build
+```
+
+`tests/fixtures/colour-test.pdf` is a tiny PDF with a Pantone spot colour, a registration colour, RGB, gradients, overprint and an RGB blending space. Drop it into the app to see how each one is reported.
+
+```
 ```
 
 ## v1.5 structure inspector

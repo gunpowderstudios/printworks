@@ -8,6 +8,8 @@
   <link rel="stylesheet" href="styles.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js" defer></script>
+  <script src="js/colour.js" defer></script>
+  <script src="js/colour-ui.js" defer></script>
   <script src="js/idml-model.js" defer></script>
   <script src="js/inspector.js" defer></script>
   <script src="js/fontmap.js" defer></script>
@@ -100,7 +102,9 @@
           <div class="pf-grid">
             <label>Bleed (mm)<input id="pf_bleedMm" class="pf-in" type="number" min="0" step="0.5"></label>
             <label>Minimum image resolution (ppi)<input id="pf_minPpi" class="pf-in" type="number" min="0" step="10"></label>
+            <label>Maximum total ink (%)<input id="pf_maxInk" class="pf-in" type="number" min="0" step="5"></label>
             <label class="pf-check"><input id="pf_allowRgb" class="pf-in" type="checkbox"> My printer accepts RGB</label>
+            <label class="pf-check"><input id="pf_allowSpot" class="pf-in" type="checkbox"> This job uses spot colours (Pantone, foil, varnish)</label>
           </div>
           <div class="pf-group">For the typography</div>
           <div class="pf-grid">
@@ -163,6 +167,7 @@
             <div class="panel insp-block"><div class="panel-title"><span>Findings</span></div><div id="inspFindings"></div></div>
           </div>
           <div class="panel insp-block"><div class="panel-title"><span>Fonts in use</span></div><div id="inspFonts"></div></div>
+          <div class="panel insp-block"><div class="panel-title"><span>Colours in the layout</span></div><div id="inspColours"></div></div>
           <div class="panel insp-block"><div class="panel-title"><span>PDF text check</span></div><div id="inspPdf"></div></div>
           <div id="inspPageExplorer" class="panel insp-block">
             <div class="panel-title">
