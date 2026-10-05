@@ -2,6 +2,18 @@
 
 All notable changes to Printworks are recorded here.
 
+## 1.4 — 2026-10-05
+
+### Added
+- **Live Preview**: selecting Editorial, Modern, Humanist or Classic immediately changes the IDML thumbnail typography.
+- Style Lab samples now reflect the currently selected typography direction before export.
+- Added a visible Live Preview badge and **Show original** control.
+- PDF thumbnails remain untouched as the original reference.
+
+### Fixed
+- Connected the existing IDML page-geometry parser to document analysis, so real page aspect ratios are now actually used.
+
+
 ## 1.3.4 — 2026-10-05
 
 ### Fixed
