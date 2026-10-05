@@ -1,5 +1,5 @@
 const $=s=>document.querySelector(s);
-const state={zip:null,file:null,stylesXml:null,designMap:null,stories:[],spreads:[],fonts:[],styles:[],selected:null,pdfFile:null,pdfDoc:null,pageText:{},activePage:null};
+const state={zip:null,file:null,stylesXml:null,designMap:null,stories:[],spreads:[],fonts:[],styles:[],styleDefs:[],styleRoles:{},styleMasters:{},selected:null,pdfFile:null,pdfDoc:null,pageText:{},activePage:null};
 
 const moods=[
  {id:'editorial',name:'Editorial Serif',class:'style-editorial',head:'Cormorant Garamond',body:'Source Serif 4',label:'Inter',desc:'Elegant, bookish and atmospheric. Strong for rules, lore, premium board-game manuals and narrative pages.',sample:'Adventure begins on the page.',bodySample:'A restrained serif system with generous rhythm, clear hierarchy and a more literary feel.',headStyle:{font:'Cormorant Garamond',style:'Semibold',size:28,leading:30},bodyStyle:{font:'Source Serif 4',style:'Regular',size:10.5,leading:14},labelStyle:{font:'Inter',style:'Bold',size:8.5,leading:10}},
@@ -17,6 +17,8 @@ function init(){
  fi.onchange=e=>handleFile(e.target.files[0]);
  $('#newFileBtn').onclick=()=>{fi.value='';$('#pdfInput').value='';state.pdfFile=null;state.pdfDoc=null;$('#pdfStatus').classList.add('hidden');$('#pdfBtn').textContent='Add PDF preview';$('#workspace').classList.add('hidden');$('.hero').classList.remove('hidden');window.scrollTo({top:0,behavior:'smooth'})};
  $('#exportBtn').onclick=exportIDML;
+ $('#autoStyleBtn').onclick=()=>{autoAssignStyleRoles(true);renderStyleLab()};
+ $('#tidyExportBtn').onclick=exportTidiedIDML;
  $('#pdfBtn').onclick=()=>$('#pdfInput').click();
  $('#pdfInput').onchange=e=>handlePDF(e.target.files[0]);
  $('#lightboxClose').onclick=closeLightbox;
@@ -26,7 +28,7 @@ function init(){
 }
 async function handleFile(file){
  if(!file)return;
- if(!file.name.toLowerCase().endsWith('.idml'))return alert('Version 1.2 currently accepts IDML files, with an optional companion PDF.');
+ if(!file.name.toLowerCase().endsWith('.idml'))return alert('Version 1.3 currently accepts IDML files, with an optional companion PDF.');
  try{
   $('#healthBadge').textContent='Reading…';
   const zip=await JSZip.loadAsync(file);
@@ -57,7 +59,9 @@ function decodeXml(s){return s.replace(/&amp;/g,'&').replace(/&quot;/g,'"').repl
 function analyse(){
  const all=[state.stylesXml,...state.stories.map(x=>x.text)].join('\\n');
  state.fonts=uniq([...attrValues(all,'AppliedFont'),...attrValues(all,'FontFamily')]).filter(x=>!/^\$ID/.test(x)).slice(0,40);
- state.styles=uniq(attrValues(state.stylesXml,'Name')).filter(x=>x&&x!=='[No Paragraph Style]'&&x!=='[Basic Paragraph]').slice(0,80);
+ state.styleDefs=parseParagraphStyles(state.stylesXml);
+ state.styles=state.styleDefs.map(x=>x.name).slice(0,80);
+ autoAssignStyleRoles(false);
  const pageMatches=state.spreads.flatMap(s=>[...s.text.matchAll(/<Page\b/g)]);
  state.pageTotal=pageMatches.length;
  state.storyTotal=state.stories.length;
@@ -76,6 +80,7 @@ function renderDocument(){
  ].map(([l,v])=>`<div class="stat"><strong>${v}</strong><span>${l}</span></div>`).join('');
  $('#fontList').innerHTML=(state.fonts.length?state.fonts:['No explicit font names found']).map(x=>`<span class="chip">${escapeHtml(x)}</span>`).join('');
  $('#styleList').innerHTML=(state.styles.length?state.styles:['No named styles found']).map(x=>`<div>${escapeHtml(x)}</div>`).join('');
+ renderStyleLab();
  const count=Math.max(1,state.pageTotal);
  $('#pageGrid').innerHTML=Array.from({length:count},(_,i)=>{
    const t=state.textSamples[i%Math.max(1,state.textSamples.length)]||'Printworks found the page structure, but no readable story text was associated with this preview.';
@@ -84,6 +89,147 @@ function renderDocument(){
    return `<article class="page-card"><span class="page-num">${i+1}</span><h4>${escapeHtml(head||'Page '+(i+1))}</h4><p>${escapeHtml(body)}</p><div class="page-lines"><i></i><i></i><i></i></div></article>`;
  }).join('');
 }
+
+const STYLE_ROLES=[
+ {id:'none',label:'— Leave alone —'},
+ {id:'card-heading',label:'Card Heading'},
+ {id:'item-heading',label:'Item Heading'},
+ {id:'item-description',label:'Item Description'},
+ {id:'body',label:'Body'},
+ {id:'caption',label:'Caption'},
+ {id:'rules-note',label:'Rules Note'},
+ {id:'section-heading',label:'Section Heading'}
+];
+function parseParagraphStyles(xml){
+ try{
+  const doc=new DOMParser().parseFromString(xml,'application/xml');
+  return [...doc.getElementsByTagName('ParagraphStyle')].map(n=>({
+    self:n.getAttribute('Self')||'',
+    name:n.getAttribute('Name')||'Unnamed Style',
+    font:n.getAttribute('AppliedFont')||'',
+    fontStyle:n.getAttribute('FontStyle')||'Regular',
+    size:n.getAttribute('PointSize')||'',
+    leading:n.getAttribute('Leading')||'',
+    basedOn:[...n.getElementsByTagName('BasedOn')][0]?.textContent||''
+  })).filter(s=>s.name!=='[No Paragraph Style]'&&s.name!=='[Basic Paragraph]');
+ }catch(e){console.warn('Could not parse paragraph styles',e);return []}
+}
+function guessStyleRole(name){
+ const n=name.toLowerCase();
+ if(/card.*(head|title)|(head|title).*card/.test(n))return 'card-heading';
+ if(/item.*(head|title)|(head|title).*item/.test(n))return 'item-heading';
+ if(/item.*(desc|description|copy)|description/.test(n))return 'item-description';
+ if(/caption|folio|credit|small/.test(n))return 'caption';
+ if(/rule.*note|note|tip|warning|callout/.test(n))return 'rules-note';
+ if(/section|chapter|heading ?1|head ?1|^heading$|^title$/.test(n))return 'section-heading';
+ if(/body|normal|copy|paragraph|text/.test(n))return 'body';
+ return 'none';
+}
+function autoAssignStyleRoles(reset){
+ if(reset)state.styleRoles={};
+ for(const s of state.styleDefs){
+  if(reset||!state.styleRoles[s.self])state.styleRoles[s.self]=guessStyleRole(s.name);
+ }
+ for(const role of STYLE_ROLES.filter(r=>r.id!=='none')){
+  const assigned=state.styleDefs.filter(s=>state.styleRoles[s.self]===role.id);
+  if(assigned.length&&!state.styleMasters[role.id])state.styleMasters[role.id]=assigned[0].self;
+ }
+}
+function stylePreviewText(role){
+ return ({
+  'card-heading':'TREASURE CARD',
+  'item-heading':'Ancient Lantern',
+  'item-description':'A useful item found deep inside the dungeon.',
+  'body':'Move your hero through the dungeon and follow the rules shown here.',
+  'caption':'Example / Figure 01',
+  'rules-note':'Remember: resolve traps before moving again.',
+  'section-heading':'Combat & Encounters'
+ })[role]||'Aa Typography';
+}
+function renderStyleLab(){
+ const list=$('#styleLabList');if(!list)return;
+ if(!state.styleDefs.length){list.innerHTML='<div class="style-empty">No paragraph styles found in this IDML.</div>';$('#styleLabSummary').textContent='No paragraph styles found';return}
+ const groupedCount=Object.values(state.styleRoles).filter(x=>x&&x!=='none').length;
+ $('#styleLabSummary').textContent=state.styleDefs.length+' paragraph styles · '+groupedCount+' assigned';
+ list.innerHTML=state.styleDefs.map((s,i)=>{
+  const role=state.styleRoles[s.self]||'none';
+  const master=role!=='none'&&state.styleMasters[role]===s.self;
+  const options=STYLE_ROLES.map(r=>`<option value="${r.id}" ${r.id===role?'selected':''}>${r.label}</option>`).join('');
+  const meta=[s.font,s.fontStyle,s.size?Number(s.size)+' pt':'',s.leading&&s.leading!=='Auto'?s.leading+' lead':''].filter(Boolean).join(' · ');
+  return `<div class="style-row" data-self="${escapeHtml(s.self)}">
+    <select class="style-role-select" data-self="${escapeHtml(s.self)}">${options}</select>
+    <div class="style-name"><strong>${escapeHtml(s.name)}</strong><small>${escapeHtml(s.self)}</small></div>
+    <div class="style-type-preview" style="${inlineStylePreview(s)}"><span>${escapeHtml(stylePreviewText(role))}</span><small>${escapeHtml(meta||'Inherited settings')}</small></div>
+    <label class="master-choice"><input type="radio" name="master-${escapeHtml(role)}" data-role="${escapeHtml(role)}" data-self="${escapeHtml(s.self)}" ${master?'checked':''} ${role==='none'?'disabled':''}><span>Master</span></label>
+  </div>`;
+ }).join('');
+ document.querySelectorAll('.style-role-select').forEach(sel=>sel.onchange=()=>{
+   const self=sel.dataset.self,old=state.styleRoles[self]||'none',role=sel.value;
+   state.styleRoles[self]=role;
+   if(old!=='none'&&state.styleMasters[old]===self)delete state.styleMasters[old];
+   if(role!=='none'&&!state.styleMasters[role])state.styleMasters[role]=self;
+   renderStyleLab();
+ });
+ document.querySelectorAll('.master-choice input').forEach(r=>r.onchange=()=>{if(r.checked&&r.dataset.role!=='none'){state.styleMasters[r.dataset.role]=r.dataset.self;renderStyleLab()}});
+}
+function inlineStylePreview(s){
+ const css=[];
+ if(s.font)css.push("font-family:'"+String(s.font).replace(/'/g,"\\'")+"',sans-serif");
+ if(/bold|black|heavy|semibold/i.test(s.fontStyle))css.push('font-weight:700');
+ if(/italic|oblique/i.test(s.fontStyle))css.push('font-style:italic');
+ const size=Math.max(13,Math.min(25,Number(s.size)||16));css.push('font-size:'+size+'px');
+ return css.join(';');
+}
+function cleanRoleName(role){return STYLE_ROLES.find(r=>r.id===role)?.label||role}
+function canonicalStyleId(role){return 'ParagraphStyle/PW_Clean_'+role.replace(/[^a-z0-9]+/gi,'_')}
+function buildCanonicalStyle(role,master){
+ const id=canonicalStyleId(role),name='PW '+cleanRoleName(role);
+ return `<ParagraphStyle Self="${escAttr(id)}" Name="${escAttr(name)}" Imported="false" NextStyle="ParagraphStyle/$ID/[No paragraph style]"${master.font?` AppliedFont="${escAttr(master.font)}"`:''}${master.fontStyle?` FontStyle="${escAttr(master.fontStyle)}"`:''}${master.size?` PointSize="${escAttr(master.size)}"`:''}${master.leading?` Leading="${escAttr(master.leading)}"`:''}><Properties><BasedOn type="string">$ID/[No paragraph style]</BasedOn></Properties></ParagraphStyle>`;
+}
+function buildCleanStyleGroup(xml){
+ const roles=STYLE_ROLES.filter(r=>r.id!=='none').map(r=>r.id).filter(role=>state.styleDefs.some(s=>state.styleRoles[s.self]===role));
+ if(!roles.length)return xml;
+ const styles=roles.map(role=>{
+  const candidates=state.styleDefs.filter(s=>state.styleRoles[s.self]===role);
+  const master=candidates.find(s=>s.self===state.styleMasters[role])||candidates[0];
+  return buildCanonicalStyle(role,master);
+ }).join('');
+ const block=`<ParagraphStyleGroup Self="ParagraphStyleGroup/Printworks_Clean" Name="Printworks Clean Styles"><Properties></Properties>${styles}</ParagraphStyleGroup>`;
+ const existing=/<ParagraphStyleGroup Self="ParagraphStyleGroup\/Printworks_Clean"[\s\S]*?<\/ParagraphStyleGroup>/;
+ if(existing.test(xml))return xml.replace(existing,block);
+ const pos=xml.lastIndexOf('</idPkg:Styles>');
+ return pos>=0?xml.slice(0,pos)+block+xml.slice(pos):xml;
+}
+function remapStoryToCleanStyles(xml){
+ let out=xml;
+ for(const s of state.styleDefs){
+  const role=state.styleRoles[s.self];
+  if(!role||role==='none')continue;
+  out=out.split('AppliedParagraphStyle="'+s.self+'"').join('AppliedParagraphStyle="'+canonicalStyleId(role)+'"');
+ }
+ return out;
+}
+async function exportTidiedIDML(){
+ if(!state.zip)return;
+ const assigned=state.styleDefs.filter(s=>state.styleRoles[s.self]&&state.styleRoles[s.self]!=='none');
+ if(!assigned.length)return alert('Assign at least one existing style to a Style Lab role first.');
+ try{
+  $('#tidyExportBtn').disabled=true;$('#tidyExportBtn').textContent='Tidying…';
+  const out=new JSZip();
+  for(const f of Object.values(state.zip.files)){
+   if(f.dir){out.folder(f.name);continue}
+   if(f.name==='Resources/Styles.xml')out.file(f.name,buildCleanStyleGroup(await f.async('string')));
+   else if(f.name.startsWith('Stories/')&&f.name.endsWith('.xml'))out.file(f.name,remapStoryToCleanStyles(await f.async('string')));
+   else out.file(f.name,await f.async('uint8array'));
+  }
+  const blob=await out.generateAsync({type:'blob',compression:'DEFLATE',compressionOptions:{level:6}});
+  const link=document.createElement('a');link.href=URL.createObjectURL(blob);
+  link.download=state.file.name.replace(/\.idml$/i,'')+'-printworks-tidied.idml';
+  document.body.appendChild(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(link.href),2000);
+ }catch(err){console.error(err);alert('Could not create the tidied IDML: '+err.message)}
+ finally{$('#tidyExportBtn').disabled=false;$('#tidyExportBtn').textContent='Create tidied IDML'}
+}
+
 async function getPdfJs(){
  if(window.pdfjsLib)return window.pdfjsLib;
  const mod=await import('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.min.mjs');
