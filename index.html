@@ -18,7 +18,7 @@
         <span>Typography Lab</span>
       </div>
     </div>
-    <div class="version">v1.2</div>
+    <div class="version">v1.3</div>
   </header>
 
   <main>
@@ -89,6 +89,34 @@
         </div>
       </section>
 
+      <section id="styleLab" class="style-lab">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">STYLE LAB</p>
+            <h2>Unify the style sheets</h2>
+          </div>
+          <p>Assign existing paragraph styles to a clear job, choose the best-looking style as the master for each job, then export a cleaned IDML where duplicates are unified.</p>
+        </div>
+        <div class="style-lab-toolbar">
+          <div>
+            <strong id="styleLabSummary">No styles analysed yet</strong>
+            <span>Printworks suggests roles from the existing style names. You can change every choice.</span>
+          </div>
+          <button id="autoStyleBtn" class="ghost">Auto tidy</button>
+        </div>
+        <div class="style-role-key">
+          <span>Role</span><span>Current style</span><span>Typography</span><span>Master</span>
+        </div>
+        <div id="styleLabList" class="style-lab-list"></div>
+        <div class="style-lab-export">
+          <div>
+            <strong>Clean style sheet export</strong>
+            <p>Styles assigned to the same role will use one canonical Printworks style. The original IDML remains untouched.</p>
+          </div>
+          <button id="tidyExportBtn" class="primary">Create tidied IDML</button>
+        </div>
+      </section>
+
       <section class="mood-section">
         <div class="section-heading">
           <div>
@@ -117,7 +145,7 @@
 
     <section class="how">
       <div>
-        <p class="eyebrow">VERSION 1.2</p>
+        <p class="eyebrow">VERSION 1.3</p>
         <h2>What it does now</h2>
       </div>
       <div class="how-grid">
@@ -129,6 +157,6 @@
     <div id="lightbox" class="lightbox hidden" aria-hidden="true"><button id="lightboxClose" aria-label="Close preview">×</button><div class="lightbox-inner"><canvas id="lightboxCanvas"></canvas><div id="lightboxCaption"></div></div></div>
 </main>
 
-  <footer>Gunpowder Studios · Printworks v1.2</footer>
+  <footer>Gunpowder Studios · Printworks v1.3</footer>
 </body>
 </html>
