@@ -55,8 +55,7 @@ function attrValues(xml,attr){
 function uniq(a){return [...new Set(a.filter(Boolean))]}
 function decodeXml(s){return s.replace(/&amp;/g,'&').replace(/&quot;/g,'"').replace(/&lt;/g,'<').replace(/&gt;/g,'>')}
 function analyse(){
- const all=[state.stylesXml,...state.stories.map(x=>x.text)].join('
-');
+ const all=[state.stylesXml,...state.stories.map(x=>x.text)].join('\\n');
  state.fonts=uniq([...attrValues(all,'AppliedFont'),...attrValues(all,'FontFamily')]).filter(x=>!/^\$ID/.test(x)).slice(0,40);
  state.styles=uniq(attrValues(state.stylesXml,'Name')).filter(x=>x&&x!=='[No Paragraph Style]'&&x!=='[Basic Paragraph]').slice(0,80);
  const pageMatches=state.spreads.flatMap(s=>[...s.text.matchAll(/<Page\b/g)]);
