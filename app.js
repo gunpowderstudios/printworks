@@ -1,5 +1,5 @@
 const $=s=>document.querySelector(s);
-const state={zip:null,file:null,stylesXml:null,designMap:null,stories:[],spreads:[],fonts:[],styles:[],selected:null,pdfFile:null,pdfDoc:null};
+const state={zip:null,file:null,stylesXml:null,designMap:null,stories:[],spreads:[],fonts:[],styles:[],selected:null,pdfFile:null,pdfDoc:null,pageText:{},activePage:null};
 
 const moods=[
  {id:'editorial',name:'Editorial Serif',class:'style-editorial',head:'Cormorant Garamond',body:'Source Serif 4',label:'Inter',desc:'Elegant, bookish and atmospheric. Strong for rules, lore, premium board-game manuals and narrative pages.',sample:'Adventure begins on the page.',bodySample:'A restrained serif system with generous rhythm, clear hierarchy and a more literary feel.',headStyle:{font:'Cormorant Garamond',style:'Semibold',size:28,leading:30},bodyStyle:{font:'Source Serif 4',style:'Regular',size:10.5,leading:14},labelStyle:{font:'Inter',style:'Bold',size:8.5,leading:10}},
@@ -26,7 +26,7 @@ function init(){
 }
 async function handleFile(file){
  if(!file)return;
- if(!file.name.toLowerCase().endsWith('.idml'))return alert('Version 1.1 currently accepts IDML files, with an optional companion PDF.');
+ if(!file.name.toLowerCase().endsWith('.idml'))return alert('Version 1.2 currently accepts IDML files, with an optional companion PDF.');
  try{
   $('#healthBadge').textContent='Reading…';
   const zip=await JSZip.loadAsync(file);
@@ -113,12 +113,62 @@ async function renderPdfGrid(){
  const grid=$('#pageGrid');grid.innerHTML='';
  for(let i=1;i<=state.pdfDoc.numPages;i++){
   const card=document.createElement('button');card.className='pdf-page-card';card.type='button';card.innerHTML=`<span class="pdf-page-label">Page ${i}</span><canvas></canvas>`;grid.appendChild(card);
-  card.onclick=()=>openPdfPage(i);
+  card.onclick=()=>openPageLab(i);
   const page=await state.pdfDoc.getPage(i);const base=page.getViewport({scale:1});const target=210;const scale=target/base.width;const viewport=page.getViewport({scale});
   const canvas=card.querySelector('canvas');canvas.width=Math.ceil(viewport.width);canvas.height=Math.ceil(viewport.height);
   await page.render({canvasContext:canvas.getContext('2d'),viewport}).promise;
  }
  $('#pageCount').textContent=state.pdfDoc.numPages+' PDF pages';
+}
+async function extractPdfPageText(num){
+ if(state.pageText[num])return state.pageText[num];
+ const page=await state.pdfDoc.getPage(num);
+ const content=await page.getTextContent();
+ const items=content.items.filter(x=>x.str&&x.str.trim());
+ const lines=[];
+ let current=[],lastY=null;
+ for(const item of items){
+  const y=Math.round(item.transform?.[5]||0);
+  if(lastY!==null&&Math.abs(y-lastY)>4&&current.length){lines.push(current.join(' ').replace(/\s+/g,' ').trim());current=[]}
+  current.push(item.str);lastY=y;
+ }
+ if(current.length)lines.push(current.join(' ').replace(/\s+/g,' ').trim());
+ const clean=lines.filter(Boolean);
+ state.pageText[num]=clean;
+ return clean;
+}
+function inferPageHierarchy(lines){
+ const cleaned=lines.map(x=>x.trim()).filter(Boolean);
+ if(!cleaned.length)return {kicker:'PAGE',headline:'No text detected',body:'This PDF page may contain outlined text or image-only artwork.'};
+ const short=cleaned.filter(x=>x.length>=3&&x.length<=90);
+ let headline=short.find(x=>x.split(/\s+/).length<=12) || cleaned[0];
+ const kicker=cleaned.find(x=>x!==headline&&x.length<45&&x.toUpperCase()===x&&/[A-Z]/.test(x)) || 'PAGE';
+ const body=cleaned.filter(x=>x!==headline&&x!==kicker).join(' ').replace(/\s+/g,' ').trim().slice(0,700) || cleaned.slice(1).join(' ').slice(0,700);
+ return {kicker,headline,body};
+}
+async function openPageLab(num){
+ if(!state.pdfDoc)return;
+ state.activePage=num;
+ const lab=$('#pageLab');lab.classList.remove('hidden');
+ $('#pageLabTitle').textContent='Page '+num+' typography';
+ const page=await state.pdfDoc.getPage(num);
+ const canvas=$('#pageLabOriginal');
+ const base=page.getViewport({scale:1});
+ const target=420;const scale=Math.min(target/base.width,1.4);const viewport=page.getViewport({scale});
+ canvas.width=Math.ceil(viewport.width);canvas.height=Math.ceil(viewport.height);
+ await page.render({canvasContext:canvas.getContext('2d'),viewport}).promise;
+ const lines=await extractPdfPageText(num);
+ renderPageTreatments(inferPageHierarchy(lines));
+ lab.scrollIntoView({behavior:'smooth',block:'start'});
+}
+function renderPageTreatments(content){
+ $('#pageTreatmentGrid').innerHTML=moods.map(m=>`<button class="page-treatment ${m.class} ${state.selected?.id===m.id?'selected':''}" data-id="${m.id}" type="button">
+   <div class="page-treatment-kicker">${escapeHtml(content.kicker)}</div>
+   <div class="page-treatment-head">${escapeHtml(content.headline)}</div>
+   <div class="page-treatment-body">${escapeHtml(content.body)}</div>
+   <div class="page-treatment-footer"><strong>${m.name}</strong><span>${m.head} · ${m.body}</span></div>
+ </button>`).join('');
+ document.querySelectorAll('.page-treatment').forEach(el=>el.onclick=()=>{selectMood(el.dataset.id);renderPageTreatments(content)});
 }
 async function openPdfPage(num){
  if(!state.pdfDoc)return;
@@ -137,6 +187,7 @@ function renderMoods(){
 function selectMood(id){
  state.selected=moods.find(m=>m.id===id);
  document.querySelectorAll('.mood-card').forEach(x=>x.classList.toggle('selected',x.dataset.id===id));
+ document.querySelectorAll('.page-treatment').forEach(x=>x.classList.toggle('selected',x.dataset.id===id));
  $('#selectedTitle').textContent=state.selected.name;
  $('#selectedDescription').textContent=state.selected.desc;
  $('#exportPanel').classList.remove('hidden');
