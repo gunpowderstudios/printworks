@@ -6,7 +6,7 @@
   <meta name="description" content="Printworks analyses Adobe InDesign IDML files and suggests alternative typography directions.">
   <title>Printworks — IDML Typography Lab</title>
   <link rel="stylesheet" href="styles.css">
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" defer></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" defer></script>\n  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.min.mjs" type="module"></script>
   <script src="app.js" defer></script>
 </head>
 <body>
@@ -18,7 +18,7 @@
         <span>Typography Lab</span>
       </div>
     </div>
-    <div class="version">v1.0</div>
+    <div class="version">v1.1</div>
   </header>
 
   <main>
@@ -95,17 +95,17 @@
 
     <section class="how">
       <div>
-        <p class="eyebrow">VERSION 1.0</p>
+        <p class="eyebrow">VERSION 1.1</p>
         <h2>What it does now</h2>
       </div>
       <div class="how-grid">
         <article><b>01</b><h3>Reads IDML</h3><p>Unpacks the document locally and inspects spreads, stories, fonts and paragraph styles.</p></article>
-        <article><b>02</b><h3>Builds a mood board</h3><p>Shows several typography systems with headline, body, label and accent treatments.</p></article>
-        <article><b>03</b><h3>Writes editable styles</h3><p>Exports a fresh IDML containing a Printworks style group, ready to refine in InDesign.</p></article>
+        <article><b>02</b><h3>Shows the real pages</h3><p>Add the matching PDF to render accurate page thumbnails and large previews directly in the browser.</p></article>
+        <article><b>03</b><h3>Explores & exports</h3><p>Compare typography systems, then export a fresh IDML containing editable Printworks paragraph styles.</p></article>
       </div>
     </section>
-  </main>
+    <div id="lightbox" class="lightbox hidden" aria-hidden="true"><button id="lightboxClose" aria-label="Close preview">×</button><div class="lightbox-inner"><canvas id="lightboxCanvas"></canvas><div id="lightboxCaption"></div></div></div>\n</main>
 
-  <footer>Gunpowder Studios · Printworks v1.0</footer>
+  <footer>Gunpowder Studios · Printworks v1.1</footer>
 </body>
 </html>
