@@ -2,6 +2,23 @@
 
 All notable changes to Printworks are recorded here.
 
+## 1.7 — 2026-10-05
+
+### Added
+- **PDF preflight**: check a PDF on its own, before it goes to your printer. Reads page size and trim and bleed boxes, font embedding (and Type 3 fonts), image colour space and effective resolution for every placement, RGB colour in text and artwork, spot colours and PDF/X output intent. Findings are grouped as problem, check, note and passed, with page links and page images for each problem.
+- **PDF-first entry**: the start screen now offers "Check a PDF" first and "Explore typography" (IDML) second. With an IDML open as well, the preflight also checks page count and trim size against the layout.
+- **One shared printer profile** (bleed, minimum image resolution, RGB policy, plus the existing text rules). Results update instantly as you change it.
+- **Copy summary** and **Download report (JSON)** for the preflight, to send to a printer or keep.
+- Practical hint for missing bleed: where to switch it on in InDesign's PDF export.
+
+### Changed
+- Start-screen wording now says what the app is: a PDF preflight and typography checker. New page title, topbar subtitle, introduction and "What it does" cards.
+
+### Notes
+- Checked against poppler on a 320-page PDF: 656 of 656 image placements matched, resolution within 1%, font embedding agreed. The minified browser build of pdf-lib gives the same results.
+- New CDN script: pdf-lib from jsDelivr.
+- Not checked: total ink coverage, overprint and trapping, transparency flattening, image content. Images inside tiling patterns are not found.
+
 ## 1.6 — 2026-10-05
 
 ### Added

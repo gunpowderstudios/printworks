@@ -1,5 +1,5 @@
 /*
- * Printworks structure inspector (v1.6)
+ * Printworks structure inspector (v1.7)
  *
  * Reads the IDML through PW.idml, then shows:
  *   - how ready each text frame is for the upcoming page renderer
@@ -60,6 +60,7 @@
       render();
       updateFontChips();
       if (PW.panels) PW.panels.onScan(ctx);
+      if (PW.preflightUI) PW.preflightUI.refresh();
       if (state.pdfDoc) runPdfCheck();
     } catch (err) {
       if (my !== runId) return;

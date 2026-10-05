@@ -5,10 +5,12 @@
   "scripts": {
     "model": "node run-model-test.js",
     "fontmap": "node fontmap-test.js",
-    "printcheck": "node printcheck-test.js"
+    "printcheck": "node printcheck-test.js",
+    "preflight": "node preflight-test.js"
   },
   "devDependencies": {
     "@xmldom/xmldom": "^0.8.10",
-    "jszip": "^3.10.1"
+    "jszip": "^3.10.1",
+    "pdf-lib": "^1.17.1"
   }
 }

@@ -1,5 +1,5 @@
 /*
- * Printworks print checks (v1.6)
+ * Printworks print checks (v1.7)
  *
  * Checks the typography against your printer's rules, using the sizes, colours and frames in the IDML.
  * Optionally applies a font map first, so you see what the NEW fonts would do.
@@ -17,7 +17,7 @@
   const MM = 72 / 25.4;
   const STORE_KEY = 'printworks.printerProfile';
 
-  const DEFAULT_PROFILE = { minText: 5, lightMin: 8, multiInkMin: 8, reverseMin: 6, safeMm: 3 };
+  const DEFAULT_PROFILE = { minText: 5, lightMin: 8, multiInkMin: 8, reverseMin: 6, safeMm: 3, bleedMm: 3, minPpi: 300, allowRgb: false };
   const LIGHT_RE = /\b(thin|hairline|extra[- ]?light|ultra[- ]?light|light)\b/i;
 
   function loadProfile() {
@@ -28,7 +28,10 @@
 
   function sanitize(p) {
     const out = {};
-    for (const k in DEFAULT_PROFILE) { const v = Number(p && p[k]); out[k] = isFinite(v) && v >= 0 ? v : DEFAULT_PROFILE[k]; }
+    for (const k in DEFAULT_PROFILE) {
+      if (typeof DEFAULT_PROFILE[k] === 'boolean') { out[k] = p && k in p ? !!p[k] : DEFAULT_PROFILE[k]; continue; }
+      const v = Number(p && p[k]); out[k] = isFinite(v) && v >= 0 ? v : DEFAULT_PROFILE[k];
+    }
     return out;
   }
 

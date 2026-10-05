@@ -3,15 +3,19 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="description" content="Printworks analyses Adobe InDesign IDML files and suggests alternative typography directions.">
-  <title>Printworks — IDML Typography Lab</title>
+  <meta name="description" content="Check a print PDF for bleed, fonts, image resolution and colour, and try new fonts on an InDesign file. Runs entirely in your browser.">
+  <title>Printworks — PDF preflight and typography checker for InDesign</title>
   <link rel="stylesheet" href="styles.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js" defer></script>
   <script src="js/idml-model.js" defer></script>
   <script src="js/inspector.js" defer></script>
   <script src="js/fontmap.js" defer></script>
   <script src="js/printcheck.js" defer></script>
+  <script src="js/profile-ui.js" defer></script>
   <script src="js/panels.js" defer></script>
+  <script src="js/preflight.js" defer></script>
+  <script src="js/preflight-ui.js" defer></script>
   <script src="app.js" defer></script>
 </head>
 <body>
@@ -20,23 +24,32 @@
       <div class="mark">P</div>
       <div>
         <strong>PRINTWORKS</strong>
-        <span>Typography Lab</span>
+        <span>Print check and typography</span>
       </div>
     </div>
-    <div class="version">v1.6</div>
+    <div class="version">v1.7</div>
   </header>
 
   <main>
     <section class="hero">
-      <p class="eyebrow">IDML DESIGN EXPLORER</p>
-      <h1>See your layout.<br>Try another typographic voice.</h1>
-      <p class="intro">Drop in an Adobe InDesign IDML file. Printworks reads the document structure and typography, then builds alternative typographic directions you can compare and export back into a new IDML.</p>
-      <div id="dropZone" class="drop-zone" tabindex="0" role="button" aria-label="Upload IDML file">
-        <input id="fileInput" type="file" accept=".idml,application/zip" hidden>
-        <div class="drop-icon">Aa</div>
-        <h2>Drop an IDML file here</h2>
-        <p>or click to choose a file</p>
-        <small>Your file stays in this browser.</small>
+      <p class="eyebrow">PDF PREFLIGHT AND TYPOGRAPHY CHECKER</p>
+      <h1>Check it before<br>the printer does.</h1>
+      <p class="intro">Drop in the PDF you are about to send to your printer. Printworks checks bleed, fonts, image resolution and colour, right in your browser. Open the InDesign file as well to try new fonts everywhere and see how they would print.</p>
+      <div class="entry-grid">
+        <div id="pfDropZone" class="drop-zone entry-primary" tabindex="0" role="button" aria-label="Choose a PDF to check">
+          <input id="pfFileInput" type="file" accept=".pdf,application/pdf" hidden>
+          <div class="drop-icon">PDF</div>
+          <h2>Check a PDF</h2>
+          <p>Drop it here or click to choose a file</p>
+          <small>Your file stays in this browser.</small>
+        </div>
+        <div id="dropZone" class="drop-zone" tabindex="0" role="button" aria-label="Upload IDML file">
+          <input id="fileInput" type="file" accept=".idml,application/zip" hidden>
+          <div class="drop-icon">Aa</div>
+          <h2>Explore typography</h2>
+          <p>Drop an IDML file here or click to choose</p>
+          <small>Optionally add its PDF afterwards.</small>
+        </div>
       </div>
     </section>
 
@@ -49,7 +62,7 @@
         <button id="newFileBtn" class="ghost">Open another</button>
       </div>
 
-      <div class="dashboard">
+      <div class="dashboard idml-only">
         <aside class="inspector panel">
           <div class="panel-title">
             <span>Document scan</span>
@@ -79,7 +92,42 @@
       </div>
       <div id="pdfStatus" class="pdf-status hidden"></div>
 
-      <section id="pageLab" class="page-lab hidden">
+      <details id="profileSection" class="profile-section" open>
+        <summary><span class="profile-title">Printer profile</span><span id="profileSummary" class="profile-summary"></span></summary>
+        <div class="panel insp-block">
+          <p class="insp-note">Starting values are common rules of thumb, not a standard. Replace them with your printer’s own specs. They are saved in this browser and used by every check below.</p>
+          <div class="pf-group">For the PDF</div>
+          <div class="pf-grid">
+            <label>Bleed (mm)<input id="pf_bleedMm" class="pf-in" type="number" min="0" step="0.5"></label>
+            <label>Minimum image resolution (ppi)<input id="pf_minPpi" class="pf-in" type="number" min="0" step="10"></label>
+            <label class="pf-check"><input id="pf_allowRgb" class="pf-in" type="checkbox"> My printer accepts RGB</label>
+          </div>
+          <div class="pf-group">For the typography</div>
+          <div class="pf-grid">
+            <label>Minimum text size (pt)<input id="pf_minText" class="pf-in" type="number" min="0" step="0.5"></label>
+            <label>Light weights below (pt)<input id="pf_lightMin" class="pf-in" type="number" min="0" step="0.5"></label>
+            <label>Multi-ink text below (pt)<input id="pf_multiInkMin" class="pf-in" type="number" min="0" step="0.5"></label>
+            <label>Reversed-out text below (pt)<input id="pf_reverseMin" class="pf-in" type="number" min="0" step="0.5"></label>
+            <label>Safe margin (mm)<input id="pf_safeMm" class="pf-in" type="number" min="0" step="0.5"></label>
+          </div>
+          <p id="pfFile" class="insp-note"></p>
+          <button id="pfReset" class="mini-btn" type="button">Reset to starting values</button>
+        </div>
+      </details>
+
+      <section id="preflightSection" class="preflight-section hidden">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">PDF PREFLIGHT</p>
+            <h2>Is this PDF ready for print?</h2>
+          </div>
+          <p>Reads the PDF’s structure in your browser and checks it against your printer profile. Change the profile and the results update straight away.</p>
+        </div>
+        <div id="pfBody" class="insp-block"></div>
+      </section>
+
+
+      <section id="pageLab" class="page-lab hidden idml-only">
         <div class="section-heading">
           <div>
             <p class="eyebrow">PAGE LAB</p>
@@ -96,7 +144,7 @@
         </div>
       </section>
 
-      <section id="inspector" class="inspector-section">
+      <section id="inspector" class="inspector-section idml-only">
         <div class="section-heading">
           <div>
             <p class="eyebrow">STRUCTURE INSPECTOR</p>
@@ -135,7 +183,7 @@
         </div>
       </section>
 
-      <section id="fontMapSection" class="fontmap-section hidden">
+      <section id="fontMapSection" class="fontmap-section hidden idml-only">
         <div class="section-heading">
           <div>
             <p class="eyebrow">FONT MAP</p>
@@ -151,18 +199,10 @@
           <datalist id="fmFamilies"></datalist><datalist id="fmStyles"></datalist>
         </div>
         <div class="panel insp-block">
-          <div class="panel-title"><span>Print checks</span><button id="pfReset" class="mini-btn" type="button">Reset to starting values</button></div>
-          <p class="insp-note">These starting values are common rules of thumb. Replace them with your printer’s own specs; they are saved in this browser.</p>
-          <div class="pf-grid">
-            <label>Minimum text size (pt)<input id="pf_minText" class="pf-in" type="number" min="0" step="0.5"></label>
-            <label>Light weights below (pt)<input id="pf_lightMin" class="pf-in" type="number" min="0" step="0.5"></label>
-            <label>Multi-ink text below (pt)<input id="pf_multiInkMin" class="pf-in" type="number" min="0" step="0.5"></label>
-            <label>Reversed-out text below (pt)<input id="pf_reverseMin" class="pf-in" type="number" min="0" step="0.5"></label>
-            <label>Safe margin (mm)<input id="pf_safeMm" class="pf-in" type="number" min="0" step="0.5"></label>
-          </div>
-          <p id="pfFile" class="insp-note"></p>
+          <div class="panel-title"><span>Print checks</span><button id="pcEditProfile" class="mini-btn" type="button">Edit printer profile</button></div>
+          <p class="insp-note">Uses the printer profile above. Sizes, weights and ink colours come straight from the file.</p>
           <div id="pcResults"></div>
-          <p class="insp-note">Sizes, weights and ink colours come straight from the file. Distance to the trim edge is measured from the frame box, not the text inside it; measuring the text itself needs the page renderer.</p>
+          <p class="insp-note">Distance to the trim edge is measured from the frame box, not the text inside it; measuring the text itself needs the page renderer.</p>
         </div>
         <div class="panel insp-block">
           <div class="panel-title"><span>Export</span></div>
@@ -172,7 +212,7 @@
         </div>
       </section>
 
-      <section id="styleLab" class="style-lab">
+      <section id="styleLab" class="style-lab idml-only">
         <div class="section-heading">
           <div>
             <p class="eyebrow">STYLE LAB</p>
@@ -200,7 +240,7 @@
         </div>
       </section>
 
-      <section class="mood-section">
+      <section class="mood-section idml-only">
         <div class="section-heading">
           <div>
             <p class="eyebrow">TYPOGRAPHIC DIRECTIONS</p>
@@ -211,7 +251,7 @@
         <div id="moodGrid" class="mood-grid"></div>
       </section>
 
-      <section id="exportPanel" class="export-panel hidden">
+      <section id="exportPanel" class="export-panel hidden idml-only">
         <div>
           <p class="eyebrow">SELECTED DIRECTION</p>
           <h2 id="selectedTitle">—</h2>
@@ -228,18 +268,18 @@
 
     <section class="how">
       <div>
-        <p class="eyebrow">VERSION 1.6</p>
-        <h2>What it does now</h2>
+        <p class="eyebrow">VERSION 1.7</p>
+        <h2>What it does</h2>
       </div>
       <div class="how-grid">
-        <article><b>01</b><h3>Reads IDML</h3><p>Unpacks the document locally and inspects spreads, stories, fonts and paragraph styles.</p></article>
-        <article><b>02</b><h3>Shows the real pages</h3><p>Add the matching PDF to render accurate page thumbnails and large previews directly in the browser.</p></article>
-        <article><b>03</b><h3>Explores & exports</h3><p>Compare typography systems, then export a fresh IDML containing editable Printworks paragraph styles.</p></article>
+        <article><b>01</b><h3>Checks your PDF</h3><p>Bleed, embedded fonts, image resolution and colour, checked against your printer’s own rules. Works on a PDF alone, with nothing to upload.</p></article>
+        <article><b>02</b><h3>Changes fonts safely</h3><p>Map every font in an InDesign file to a new one, including text that styles alone would miss. Only fonts change, and the new file is checked before you download it.</p></article>
+        <article><b>03</b><h3>Warns before print</h3><p>Flags tiny or thin text, text already cut off in InDesign, and frames that sit too close to the trim edge.</p></article>
       </div>
     </section>
     <div id="lightbox" class="lightbox hidden" aria-hidden="true"><button id="lightboxClose" aria-label="Close preview">×</button><div class="lightbox-inner"><canvas id="lightboxCanvas"></canvas><div id="lightboxCaption"></div></div></div>
 </main>
 
-  <footer>Gunpowder Studios · Printworks v1.6</footer>
+  <footer>Gunpowder Studios · Printworks v1.7</footer>
 </body>
 </html>

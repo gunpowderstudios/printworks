@@ -1,5 +1,5 @@
 /*
- * Printworks panels (v1.6): font map, print checks, verified export.
+ * Printworks panels (v1.7): font map, print checks, verified export.
  * UI glue only. The work is done by PW.fontmap and PW.printcheck.
  */
 (function (root) {
@@ -25,7 +25,7 @@
     reset(); ctx = c; rows = c.scan.report.fonts.slice();
     const sec = $('#fontMapSection'); if (!sec) return;
     sec.classList.remove('hidden');
-    buildPresetSelect(); buildDatalists(); renderFontTable(); renderProfile(); runChecks(); updateExportButton();
+    buildPresetSelect(); buildDatalists(); renderFontTable(); fileNote(); runChecks(); updateExportButton();
   }
 
   /* --------------------------------------------------------------- font map */
@@ -91,21 +91,16 @@
   function clearReport() { $('#fmReport').innerHTML = ''; if (lastUrl) { URL.revokeObjectURL(lastUrl); lastUrl = null; } }
 
   /* ------------------------------------------------------------ print checks */
-  function renderProfile() {
-    const p = PW.printcheck.loadProfile();
-    for (const k of Object.keys(p)) { const el = $('#pf_' + k); if (el) el.value = p[k]; }
-    const pr = ctx.scan.report.prefs; const b = pr && pr.bleed && pr.bleed.top != null ? pr.bleed.top / (72 / 25.4) : null;
-    const pg = ctx.scan.pages[0]; const mg = pg && pg.margins ? pg.margins.top / (72 / 25.4) : null;
-    $('#pfFile').textContent = 'This file: bleed ' + (b != null ? b.toFixed(1) + ' mm' : 'not set') + ', page margins ' + (mg != null ? mg.toFixed(1) + ' mm' : 'not set') + '.';
-  }
-  function readProfile() {
-    const p = {}; for (const k of Object.keys(PW.printcheck.DEFAULT_PROFILE)) { const el = $('#pf_' + k); p[k] = el ? el.value : ''; }
-    return PW.printcheck.sanitize(p);
+  function fileNote() {
+    const pr = ctx.scan.report.prefs; const MM = 72 / 25.4;
+    const b = pr && pr.bleed && pr.bleed.top != null ? pr.bleed.top / MM : null;
+    const pg = ctx.scan.pages[0]; const mg = pg && pg.margins ? pg.margins.top / MM : null;
+    if (PW.profileUI) PW.profileUI.setFileNote('IDML: bleed ' + (b != null ? b.toFixed(1) + ' mm' : 'not set') + ', page margins ' + (mg != null ? mg.toFixed(1) + ' mm' : 'not set') + '.');
   }
   function scheduleChecks() { clearTimeout(checkTimer); checkTimer = setTimeout(runChecks, 200); }
   function runChecks() {
     if (!ctx) return;
-    const profile = readProfile(); PW.printcheck.saveProfile(profile);
+    const profile = PW.printcheck.loadProfile();
     const map = currentMap(); const res = PW.printcheck.run(ctx.doc, ctx.scan, profile, map);
     const li = i => `<li><div class="pc-head"><span class="lvl lvl-${i.level}">${i.level === 'warn' ? 'check' : 'note'}</span><b>${esc(i.title)}</b><span class="pc-count">${num(i.frames)} frame${i.frames === 1 ? '' : 's'}${i.chars ? ' · ' + num(i.chars) + ' characters' : ''}</span></div>
       <p class="insp-note">${esc(i.help)}</p>
@@ -167,8 +162,9 @@
     sel.onchange = () => { if (sel.value) applyPreset(sel.value); sel.value = ''; };
     $('#fmClear').onclick = () => { entries = new Map(); renderFontTable(); runChecks(); updateExportButton(); clearReport(); };
     $('#fmExportBtn').onclick = exportFontMap;
-    document.querySelectorAll('.pf-in').forEach(el => { el.oninput = scheduleChecks; });
-    $('#pfReset').onclick = () => { PW.printcheck.saveProfile(PW.printcheck.DEFAULT_PROFILE); renderProfile(); runChecks(); };
+    document.addEventListener('printworks:profile', scheduleChecks);
+    const ep = $('#pcEditProfile');
+    if (ep) ep.onclick = () => { const d = $('#profileSection'); if (d) { d.open = true; d.scrollIntoView({ behavior: 'smooth', block: 'center' }); } };
   }
   document.addEventListener('DOMContentLoaded', init);
 

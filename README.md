@@ -1,23 +1,44 @@
 # Printworks
 
-**Version 1.6**
+**Version 1.7**
 
-Printworks is a browser-based typography checker for print-ready InDesign files. Open an IDML (and optionally its PDF), try new fonts, and see whether the change would cause problems before anything goes to your printer. Nothing is uploaded; everything runs in your browser.
+Printworks is a browser-based print checker and typography tool for InDesign files. Drop in the PDF you are about to send to your printer and it checks bleed, fonts, image resolution and colour. Then, when you want to try a different typeface, open the IDML and see how the change would print. Nothing is uploaded; your files are read in your browser.
 
-Made for people who design card games, board games, boxes and books in InDesign and want to explore type safely, especially across many pages.
+Made for people who design card games, board games, boxes and books in InDesign.
 
-**What it does**
+**1. Check a PDF** (works on a PDF alone)
 
-- Reads how an IDML is built (pages, text frames, stories, styles, fonts, colours) and reports what it can and cannot handle.
-- Maps every font in the file to a new one, including text where the font was set directly, and exports a revised IDML that changes font family and style and nothing else.
-- Checks the result against your printer's rules: minimum text size, thin weights, small text in several inks, small reversed-out text, and text frames near the trim.
+- Page size, trim and bleed boxes, against the bleed your printer needs.
+- Fonts: every font embedded, no Type 3.
+- Images: colour space (RGB, CMYK, Lab, spot) and effective resolution of every placement.
+- RGB colour in text and vector artwork, spot colours, PDF/X output intent.
+- With an IDML open as well: page count and trim size against the layout.
+
+**2. Explore typography** (needs the IDML)
+
+- Reads how the IDML is built (pages, text frames, stories, styles, fonts, colours).
+- Maps every font to a new one, including text where the font was set directly, and exports a revised IDML that changes font family and style and nothing else.
+- Checks the result against your printer's rules: minimum text size, thin weights, small text in several inks, small reversed-out text, text frames near the trim.
 - With the companion PDF, finds text that is already cut off in InDesign.
+
+One **printer profile** (bleed, minimum resolution, RGB policy, minimum text sizes, safe margin) drives both. Change a value and every result updates straight away.
 
 **What it is not**
 
+- It is not a replacement for your printer's own preflight, which has the final word.
 - It is not a replacement for InDesign: it does not edit layouts or make the final PDF.
-- It does not reproduce InDesign's text engine exactly, so its checks are warnings, not proof.
+- It does not reproduce InDesign's text engine exactly, so typography checks are warnings, not proof.
 - It does not draw the pages yet (planned).
+
+## v1.7 PDF preflight
+
+The checker reads the PDF's structure with [pdf-lib](https://pdf-lib.js.org/) and walks each page's drawing instructions just far enough to find where images are placed (for resolution), which fonts are used, and whether RGB colours are painted. No images are decoded, so a 36 MB, 320-page PDF takes roughly 10 seconds.
+
+It was checked against poppler's `pdfimages` and `pdffonts` on a real 320-page PDF: all 656 image placements matched, with effective resolution within 1%, and font embedding agreed. The minified browser build of pdf-lib gives identical results.
+
+**Not checked:** total ink coverage, overprint and trapping, transparency flattening, and how images actually look. Images painted through tiling patterns are not found. Password-protected PDFs cannot be read; export an unprotected copy. Images inside soft masks (drop shadows, feathering) are read but left out of the colour and resolution findings, because their resolution does not affect print quality.
+
+**Libraries.** pdf-lib loads from jsDelivr, alongside JSZip and PDF.js from cdnjs. Only code is fetched; your files never leave the browser.
 
 ## v1.6 font map, print checks and verified export
 
@@ -41,6 +62,8 @@ cd tests && npm install
 node run-model-test.js file.idml file.pdf   # structure report + PDF check
 node fontmap-test.js file.idml              # font map: synthetic cases, then your file
 node printcheck-test.js file.idml           # print checks
+node preflight-test.js file.pdf             # PDF preflight (synthetic PDFs, then compared with poppler)
+PDFLIB_MIN=1 node preflight-test.js file.pdf  # same, against pdf-lib's minified browser build
 ```
 
 ## v1.5 structure inspector
