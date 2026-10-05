@@ -1,10 +1,10 @@
 # Printworks
 
-**Version 1.3.4**
+**Version 1.4**
 
 Printworks is a browser-based typography exploration tool for Adobe InDesign IDML documents.
 
-## v1.3.4
+## v1.4
 
 - Upload an `.idml` file locally in the browser.
 - Inspect page/spread count, stories, word count, detected fonts and named styles.
@@ -27,6 +27,10 @@ Printworks is a browser-based typography exploration tool for Adobe InDesign IDM
 - Optionally remap obvious existing headline/body/label styles to the new styles.
 - The original IDML is never modified.
 - Files are processed locally in the browser.
+
+## Live preview
+
+Selecting a typography direction now changes the IDML-only page thumbnails and Style Lab typography samples immediately. The selected mood is shown as a live preview before export. PDF thumbnails remain unchanged so they can act as the original visual reference.
 
 ## Typography application
 
