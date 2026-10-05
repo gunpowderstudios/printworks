@@ -1,15 +1,15 @@
 # Printworks
 
-**Version 1.2**
+**Version 1.3**
 
 Printworks is a browser-based typography exploration tool for Adobe InDesign IDML documents.
 
-## v1.2
+## v1.3
 
 - Upload an `.idml` file locally in the browser.
 - Inspect page/spread count, stories, word count, detected fonts and named styles.
 - Show lightweight page cards using text extracted from the IDML.\n- Optionally add the matching PDF for accurate rendered page thumbnails.\n- Click any rendered PDF thumbnail to open **Page Lab**.\n- Extract text from the selected PDF page with PDF.js.\n- Infer a likely kicker, headline and body from that page.\n- Compare the actual page wording across all typography directions beside the original rendered page.\n- Warn when PDF and IDML page counts do not match.
-- Compare four typographic mood-board directions.
+- Compare four typographic mood-board directions.\n- Use **Style Lab** to inspect existing paragraph styles as pure typography.\n- Assign styles to semantic roles such as Card Heading, Item Heading, Item Description, Body, Caption and Rules Note.\n- Choose a master style for each role and export a tidied IDML.\n- The tidy export remaps style references across the IDML package and removes the duplicate style definitions you chose to unify.
 - Export a new IDML with a **Printworks** paragraph-style group containing:
   - PW Headline
   - PW Body
