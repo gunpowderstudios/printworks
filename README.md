@@ -1,15 +1,25 @@
 # Printworks
 
-**Version 1.3**
+**Version 1.3.1**
 
 Printworks is a browser-based typography exploration tool for Adobe InDesign IDML documents.
 
-## v1.3
+## v1.3.1
 
 - Upload an `.idml` file locally in the browser.
 - Inspect page/spread count, stories, word count, detected fonts and named styles.
-- Show lightweight page cards using text extracted from the IDML.\n- Optionally add the matching PDF for accurate rendered page thumbnails.\n- Click any rendered PDF thumbnail to open **Page Lab**.\n- Extract text from the selected PDF page with PDF.js.\n- Infer a likely kicker, headline and body from that page.\n- Compare the actual page wording across all typography directions beside the original rendered page.\n- Warn when PDF and IDML page counts do not match.
-- Compare four typographic mood-board directions.\n- Use **Style Lab** to inspect existing paragraph styles as pure typography.\n- Assign styles to semantic roles such as Card Heading, Item Heading, Item Description, Body, Caption and Rules Note.\n- Choose a master style for each role and export a tidied IDML.\n- The tidy export remaps style references across the IDML package and removes the duplicate style definitions you chose to unify.
+- Show lightweight page cards using text extracted from the IDML.
+- Optionally add the matching PDF for accurate rendered page thumbnails.
+- Click any rendered PDF thumbnail to open **Page Lab**.
+- Extract text from the selected PDF page with PDF.js.
+- Infer a likely kicker, headline and body from that page.
+- Compare the actual page wording across all typography directions beside the original rendered page.
+- Warn when PDF and IDML page counts do not match.
+- Compare four typographic mood-board directions.
+- Use **Style Lab** to inspect existing paragraph styles as pure typography.
+- Assign styles to semantic roles such as Card Heading, Item Heading, Item Description, Body, Caption and Rules Note.
+- Choose a master style for each role and export a tidied IDML.
+- The tidy export remaps style references across the IDML package and removes the duplicate style definitions you chose to unify.
 - Export a new IDML with a **Printworks** paragraph-style group containing:
   - PW Headline
   - PW Body
@@ -37,4 +47,16 @@ The project is static and can be hosted directly with GitHub Pages from the repo
 - Better style-role detection.
 - Master-page and object-style recommendations.
 - Colour/palette extraction and alternatives.
-- More advanced page hierarchy detection using IDML geometry and PDF text coordinates.\n- AI-assisted layout critique.
+- More advanced page hierarchy detection using IDML geometry and PDF text coordinates.
+- AI-assisted layout critique.
+
+
+## Versioning
+
+Printworks uses semantic-style versioning for app changes:
+
+- **Major** (`2.0`) — substantial workflow or compatibility changes.
+- **Minor** (`1.4`) — new features.
+- **Patch** (`1.3.1`) — fixes and small refinements.
+
+Every released change should update the visible app version and add an entry to `CHANGELOG.md`.
