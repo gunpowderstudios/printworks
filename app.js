@@ -200,12 +200,32 @@ function buildCleanStyleGroup(xml){
  const pos=xml.lastIndexOf('</idPkg:Styles>');
  return pos>=0?xml.slice(0,pos)+block+xml.slice(pos):xml;
 }
-function remapStoryToCleanStyles(xml){
+function remapAllStyleReferences(xml){
+ let out=xml;
+ for(const s of state.styleDefs){
+  const role=state.styleRoles[s.self];
+  if(!role||role==='none')continue;
+  out=out.split(s.self).join(canonicalStyleId(role));
+ }
+ return out;
+}
+function escapeRegExp(s){return String(s).replace(/[.*+?^$()|[\]\\]/g,'\\function remapStoryToCleanStyles(xml){
  let out=xml;
  for(const s of state.styleDefs){
   const role=state.styleRoles[s.self];
   if(!role||role==='none')continue;
   out=out.split('AppliedParagraphStyle="'+s.self+'"').join('AppliedParagraphStyle="'+canonicalStyleId(role)+'"');
+ }
+ return out;
+}')}
+function removeUnifiedStyleDefinitions(xml){
+ let out=xml;
+ for(const s of state.styleDefs){
+  const role=state.styleRoles[s.self];
+  if(!role||role==='none')continue;
+  const id=escapeRegExp(s.self);
+  const rx=new RegExp('<ParagraphStyle\\b(?=[^>]*\\bSelf="'+id+'")[^>]*(?:\\/>|>[\\s\\S]*?<\\/ParagraphStyle>)','g');
+  out=out.replace(rx,'');
  }
  return out;
 }
@@ -218,9 +238,12 @@ async function exportTidiedIDML(){
   const out=new JSZip();
   for(const f of Object.values(state.zip.files)){
    if(f.dir){out.folder(f.name);continue}
-   if(f.name==='Resources/Styles.xml')out.file(f.name,buildCleanStyleGroup(await f.async('string')));
-   else if(f.name.startsWith('Stories/')&&f.name.endsWith('.xml'))out.file(f.name,remapStoryToCleanStyles(await f.async('string')));
-   else out.file(f.name,await f.async('uint8array'));
+   if(f.name.endsWith('.xml')){
+    let xml=await f.async('string');
+    xml=remapAllStyleReferences(xml);
+    if(f.name==='Resources/Styles.xml')xml=buildCleanStyleGroup(removeUnifiedStyleDefinitions(xml));
+    out.file(f.name,xml);
+   }else out.file(f.name,await f.async('uint8array'));
   }
   const blob=await out.generateAsync({type:'blob',compression:'DEFLATE',compressionOptions:{level:6}});
   const link=document.createElement('a');link.href=URL.createObjectURL(blob);
