@@ -1,5 +1,5 @@
 const $=s=>document.querySelector(s);
-const state={zip:null,file:null,stylesXml:null,designMap:null,stories:[],spreads:[],fonts:[],styles:[],styleDefs:[],styleRoles:{},styleMasters:{},selected:null,pdfFile:null,pdfDoc:null,pageText:{},activePage:null};
+const state={zip:null,file:null,stylesXml:null,designMap:null,stories:[],spreads:[],fonts:[],styles:[],styleDefs:[],styleRoles:{},styleMasters:{},pageGeometry:[],selected:null,pdfFile:null,pdfDoc:null,pageText:{},activePage:null};
 
 const moods=[
  {id:'editorial',name:'Editorial Serif',class:'style-editorial',head:'Cormorant Garamond',body:'Source Serif 4',label:'Inter',desc:'Elegant, bookish and atmospheric. Strong for rules, lore, premium board-game manuals and narrative pages.',sample:'Adventure begins on the page.',bodySample:'A restrained serif system with generous rhythm, clear hierarchy and a more literary feel.',headStyle:{font:'Cormorant Garamond',style:'Semibold',size:28,leading:30},bodyStyle:{font:'Source Serif 4',style:'Regular',size:10.5,leading:14},labelStyle:{font:'Inter',style:'Bold',size:8.5,leading:10}},
@@ -74,6 +74,35 @@ function analyse(){
  state.wordCount=state.stories.reduce((n,s)=>n+plainStoryText(s.text).trim().split(/\s+/).filter(Boolean).length,0);
  state.textSamples=state.stories.map(s=>plainStoryText(s.text)).filter(t=>t.trim()).slice(0,Math.max(1,state.pageTotal));
 }
+function parsePageGeometry(){
+ const pages=[];
+ for(const spread of state.spreads){
+  try{
+   const doc=new DOMParser().parseFromString(spread.text,'application/xml');
+   for(const page of doc.getElementsByTagName('Page')){
+    const bounds=(page.getAttribute('GeometricBounds')||'').trim().split(/\s+/).map(Number);
+    if(bounds.length!==4||bounds.some(Number.isNaN))continue;
+    const [y1,x1,y2,x2]=bounds;
+    const width=Math.abs(x2-x1),height=Math.abs(y2-y1);
+    pages.push({
+      name:page.getAttribute('Name')||String(pages.length+1),
+      width,height,
+      widthMm:width*25.4/72,
+      heightMm:height*25.4/72
+    });
+   }
+  }catch(e){console.warn('Could not read page geometry',spread.name,e)}
+ }
+ return pages.sort((a,b)=>{
+  const an=Number(a.name),bn=Number(b.name);
+  return Number.isFinite(an)&&Number.isFinite(bn)?an-bn:0;
+ });
+}
+function formatMm(n){
+ const rounded=Math.round(n*10)/10;
+ return Number.isInteger(rounded)?String(rounded):rounded.toFixed(1);
+}
+
 function plainStoryText(xml){
  return [...xml.matchAll(/<Content>([\s\S]*?)<\/Content>/g)].map(m=>decodeXml(m[1].replace(/<[^>]+>/g,''))).join(' ').replace(/\s+/g,' ').trim();
 }
@@ -92,7 +121,10 @@ function renderDocument(){
    const t=state.textSamples[i%Math.max(1,state.textSamples.length)]||'Printworks found the page structure, but no readable story text was associated with this preview.';
    const words=t.split(' '); const head=words.slice(0,Math.min(7,words.length)).join(' ');
    const body=words.slice(7,30).join(' ');
-   return `<article class="page-card"><span class="page-num">${i+1}</span><h4>${escapeHtml(head||'Page '+(i+1))}</h4><p>${escapeHtml(body)}</p><div class="page-lines"><i></i><i></i><i></i></div></article>`;
+   const g=state.pageGeometry[i]||{width:3,height:4,widthMm:0,heightMm:0};
+   const ratio=g.height?g.width/g.height:.75;
+   const dims=g.widthMm&&g.heightMm?formatMm(g.widthMm)+' × '+formatMm(g.heightMm)+' mm':'';
+   return `<article class="page-card" style="aspect-ratio:${g.width}/${g.height}" title="${escapeHtml(dims)}"><span class="page-num">${i+1}</span><span class="page-size">${escapeHtml(dims)}</span><h4>${escapeHtml(head||'Page '+(i+1))}</h4><p>${escapeHtml(body)}</p><div class="page-lines"><i></i><i></i><i></i></div></article>`;
  }).join('');
 }
 
