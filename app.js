@@ -15,7 +15,7 @@ function init(){
  ['dragleave','drop'].forEach(ev=>dz.addEventListener(ev,e=>{e.preventDefault();dz.classList.remove('drag')}));
  dz.addEventListener('drop',e=>handleFile(e.dataTransfer.files[0]));
  fi.onchange=e=>handleFile(e.target.files[0]);
- $('#newFileBtn').onclick=()=>{fi.value='';$('#pdfInput').value='';state.pdfFile=null;state.pdfDoc=null;$('#pdfStatus').classList.add('hidden');$('#pdfBtn').textContent='Add PDF preview';$('#workspace').classList.add('hidden');$('.hero').classList.remove('hidden');window.scrollTo({top:0,behavior:'smooth'})};
+ $('#newFileBtn').onclick=()=>{fi.value='';$('#pdfInput').value='';state.pdfFile=null;state.pdfDoc=null;state.selected=null;$('#pdfStatus').classList.add('hidden');$('#pdfBtn').textContent='Add PDF preview';$('#workspace').classList.add('hidden');$('.hero').classList.remove('hidden');window.scrollTo({top:0,behavior:'smooth'})};
  $('#exportBtn').onclick=exportIDML;
  $('#autoStyleBtn').onclick=()=>{
    const btn=$('#autoStyleBtn');
@@ -27,6 +27,7 @@ function init(){
  $('#tidyExportBtn').onclick=exportTidiedIDML;
  $('#pdfBtn').onclick=()=>$('#pdfInput').click();
  $('#pdfInput').onchange=e=>handlePDF(e.target.files[0]);
+ $('#originalPreviewBtn').onclick=showOriginalPreview;
  $('#lightboxClose').onclick=closeLightbox;
  $('#lightbox').onclick=e=>{if(e.target.id==='lightbox')closeLightbox()};
  document.addEventListener('keydown',e=>{if(e.key==='Escape')closeLightbox()});
@@ -34,7 +35,7 @@ function init(){
 }
 async function handleFile(file){
  if(!file)return;
- if(!file.name.toLowerCase().endsWith('.idml'))return alert('Version 1.3 currently accepts IDML files, with an optional companion PDF.');
+ if(!file.name.toLowerCase().endsWith('.idml'))return alert('Version 1.4 currently accepts IDML files, with an optional companion PDF.');
  try{
   $('#healthBadge').textContent='Reading…';
   const zip=await JSZip.loadAsync(file);
@@ -216,11 +217,12 @@ function renderStyleLab(){
   const role=state.styleRoles[s.self]||'none';
   const master=role!=='none'&&state.styleMasters[role]===s.self;
   const options=STYLE_ROLES.map(r=>`<option value="${r.id}" ${r.id===role?'selected':''}>${r.label}</option>`).join('');
-  const meta=[s.font,s.fontStyle,s.size?Number(s.size)+' pt':'',s.leading&&s.leading!=='Auto'?s.leading+' lead':''].filter(Boolean).join(' · ');
+  const previewSpec=state.selected&&role!=='none'?moodStyleForRole(role,state.selected):null;
+  const meta=[previewSpec?previewSpec.font:s.font,previewSpec?previewSpec.style:s.fontStyle,s.size?Number(s.size)+' pt':'',s.leading&&s.leading!=='Auto'?s.leading+' lead':''].filter(Boolean).join(' · ')+(previewSpec?' · LIVE PREVIEW':'');
   return `<div class="style-row" data-self="${escapeHtml(s.self)}">
     <select class="style-role-select" data-self="${escapeHtml(s.self)}">${options}</select>
     <div class="style-name"><strong>${escapeHtml(s.name)}</strong><small>${escapeHtml(s.self)}</small></div>
-    <div class="style-type-preview" style="${inlineStylePreview(s)}"><span>${escapeHtml(stylePreviewText(role))}</span><small>${escapeHtml(meta||'Inherited settings')}</small></div>
+    <div class="style-type-preview" style="${inlineStylePreview(s,role)}"><span>${escapeHtml(stylePreviewText(role))}</span><small>${escapeHtml(meta||'Inherited settings')}</small></div>
     <label class="master-choice"><input type="radio" name="master-${escapeHtml(role)}" data-role="${escapeHtml(role)}" data-self="${escapeHtml(s.self)}" ${master?'checked':''} ${role==='none'?'disabled':''}><span>Master</span></label>
   </div>`;
  }).join('');
@@ -233,11 +235,14 @@ function renderStyleLab(){
  });
  document.querySelectorAll('.master-choice input').forEach(r=>r.onchange=()=>{if(r.checked&&r.dataset.role!=='none'){state.styleMasters[r.dataset.role]=r.dataset.self;renderStyleLab()}});
 }
-function inlineStylePreview(s){
+function inlineStylePreview(s,role){
  const css=[];
- if(s.font)css.push("font-family:'"+String(s.font).replace(/'/g,"\\'")+"',sans-serif");
- if(/bold|black|heavy|semibold/i.test(s.fontStyle))css.push('font-weight:700');
- if(/italic|oblique/i.test(s.fontStyle))css.push('font-style:italic');
+ const preview=state.selected&&role&&role!=='none'?moodStyleForRole(role,state.selected):null;
+ const font=preview?.font||s.font;
+ const fontStyle=preview?.style||s.fontStyle;
+ if(font)css.push("font-family:'"+String(font).replace(/'/g,"\\'")+"',sans-serif");
+ if(/bold|black|heavy|semibold|demi/i.test(fontStyle||''))css.push('font-weight:700');
+ if(/italic|oblique/i.test(fontStyle||''))css.push('font-style:italic');
  const size=Math.max(13,Math.min(25,Number(s.size)||16));css.push('font-size:'+size+'px');
  return css.join(';');
 }
@@ -410,6 +415,32 @@ async function openPdfPage(num){
  canvas.width=Math.ceil(viewport.width);canvas.height=Math.ceil(viewport.height);await page.render({canvasContext:canvas.getContext('2d'),viewport}).promise;
 }
 function closeLightbox(){const box=$('#lightbox');box.classList.add('hidden');box.setAttribute('aria-hidden','true')}
+function moodFontStack(name){
+ const safe=String(name||'').replace(/'/g,"\\'");
+ return "'"+safe+"', Arial, Helvetica, sans-serif";
+}
+function applyLivePreview(mood){
+ if(!mood)return;
+ const ws=$('#workspace');
+ ws.classList.add('live-preview-active');
+ ws.style.setProperty('--pw-head-font',moodFontStack(mood.head));
+ ws.style.setProperty('--pw-body-font',moodFontStack(mood.body));
+ ws.style.setProperty('--pw-label-font',moodFontStack(mood.label));
+ $('#livePreviewBadge').textContent='Live: '+mood.name;
+ $('#originalPreviewBtn').classList.remove('hidden');
+ renderStyleLab();
+}
+function showOriginalPreview(){
+ const ws=$('#workspace');
+ ws.classList.remove('live-preview-active');
+ ws.style.removeProperty('--pw-head-font');
+ ws.style.removeProperty('--pw-body-font');
+ ws.style.removeProperty('--pw-label-font');
+ $('#livePreviewBadge').textContent='Original typography';
+ $('#originalPreviewBtn').classList.add('hidden');
+ renderStyleLab();
+}
+
 function renderMoods(){
  $('#moodGrid').innerHTML=moods.map(m=>`<article class="mood-card ${m.class}" data-id="${m.id}">
   <div class="mood-sample"><div><div class="mood-kicker">PRINTWORKS / ${m.name}</div><div class="mood-head">${m.sample}</div><div class="mood-body">${m.bodySample}</div></div></div>
@@ -419,6 +450,7 @@ function renderMoods(){
 }
 function selectMood(id){
  state.selected=moods.find(m=>m.id===id);
+ applyLivePreview(state.selected);
  document.querySelectorAll('.mood-card').forEach(x=>x.classList.toggle('selected',x.dataset.id===id));
  document.querySelectorAll('.page-treatment').forEach(x=>x.classList.toggle('selected',x.dataset.id===id));
  $('#selectedTitle').textContent=state.selected.name;
