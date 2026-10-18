@@ -2,6 +2,11 @@
 
 All notable changes to Printworks are recorded here.
 
+## 1.8.1 — 2026-10-18
+
+### Added
+- "What does this mean?" under each group in Colours used (spot, registration, RGB, gradients, CMYK builds), and a "How to read this section" note, written in plain language with analogies.
+
 ## 1.8 — 2026-10-18
 
 ### Added

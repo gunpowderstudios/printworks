@@ -79,17 +79,26 @@
     const spot = of(c => c.kind === 'spot'), reg = of(c => c.kind === 'registration'), bad = of(c => c.kind === 'rgb' || c.kind === 'lab');
     const grads = of(c => c.kind === 'gradient'), gray = of(c => c.kind === 'gray');
     const cmyk = of(c => c.kind === 'cmyk').sort((a, b) => (b.hot - a.hot) || b.pages.length - a.pages.length || b.uses - a.uses);
-    const group = (title, note, inner) => inner ? `<div class="pf-cgroup"><h4>${title}${note ? ` <span class="insp-note">${note}</span>` : ''}</h4>${inner}</div>` : '';
+    const group = (title, note, inner, help) => inner ? `<div class="pf-cgroup"><h4>${title}${note ? ` <span class="insp-note">${note}</span>` : ''}</h4>${help ? `<details class="pf-help"><summary>What does this mean?</summary><p>${help}</p></details>` : ''}${inner}</div>` : '';
+    const H = {
+      spot: 'A printing press lays down colour one layer at a time, like screen-printing a T-shirt with one screen per colour. Normal full-colour printing uses four layers: cyan, magenta, yellow and black (CMYK). A <b>spot colour</b>, such as a Pantone, is a fifth premixed pot of ink with its own extra layer. That costs extra, and if you did not plan for it you may get an unexpected charge or a muddy conversion. Fix: turn it into CMYK in InDesign, unless the job really uses that ink.',
+      reg: '<b>Registration</b> is the guide mark that lets the printer line up the layers. Think of tracing paper sheets stacked on top of each other, each with a cross in the same place: if the crosses sit on top of each other, the layers are lined up. Registration is a special colour that prints on <b>all</b> the layers at once, so the marks can be matched. It is right on crop marks and targets outside your cut line. It is wrong on your artwork or text, because that would print as all four inks at full strength, a thick muddy black with fuzzy edges.',
+      rgb: 'RGB is how screens make colour with light. Printers cannot print it, so they convert it to CMYK, and bright screen colours (vivid blues and greens especially) can come out duller than you expected. Convert it yourself so you see the result first.',
+      grad: 'A gradient fades from one colour to another. If the colours are RGB, the printer has to convert them, and the smooth fade can shift or band.',
+      cmyk: 'Each line is a recipe, for example C0 M0 Y0 K100 means black ink only at full strength. The percentage on the right is the <b>total ink</b>, all four layers added together. Paper can only hold so much wet ink (around 300% for most presses). Too much and it smudges, dries slowly or sets off on the next sheet. Rich blacks are the usual culprit. Items over your limit are marked.',
+      gray: 'Grays made from black ink only. These are fine, and the safest way to print neutral gray without a colour cast.'
+    };
     const shown = cmyk.slice(0, 16), more = cmyk.slice(16);
     const imgRows = res.imageColour.map(x => `<li class="pf-imgrow${x.family === 'RGB' || x.family === 'Lab' ? ' is-problem' : ''}"><b>${esc(x.family === 'Spot' ? 'Spot / DeviceN' : x.family)}</b><span>${num(x.placements)} placement${x.placements === 1 ? '' : 's'} of ${num(x.images)} image${x.images === 1 ? '' : 's'} · ${num(x.pages.length)} page${x.pages.length === 1 ? '' : 's'}</span></li>`).join('');
     const blend = res.blend; const blendTxt = blend.rgb ? `RGB on ${num(blend.rgb)} page${blend.rgb === 1 ? '' : 's'}` : blend.cmyk ? `CMYK on ${num(blend.cmyk)} page${blend.cmyk === 1 ? '' : 's'}` : 'not set';
     return `<section class="pf-colours"><h3>Colours used</h3>
       <p class="insp-note">Every colour actually painted in text and artwork, listed the way a separations check would. Swatches are on-screen approximations; the printed colour depends on the press and paper.</p>
-      ${group('Spot colours', 'print as their own plates', spot.length ? CU.list(spot, { pageButtons: 8 }) : '')}
-      ${group('Registration', 'prints on every plate', reg.length ? CU.list(reg, { pageButtons: 8 }) : '')}
-      ${group('RGB and Lab', 'not print colours', bad.length ? CU.list(bad.map(c => Object.assign({}, c, { problem: !profile.allowRgb })), { pageButtons: 8 }) : '')}
-      ${group('Gradients', '', grads.length ? CU.list(grads.map(c => Object.assign({}, c, { problem: c.family === 'RGB' && !profile.allowRgb })), { pageButtons: 6 }) : '')}
-      ${group(`CMYK builds (${num(cmyk.length)})`, profile.maxInk ? `over ${profile.maxInk}% total ink are marked` : '', cmyk.length ? CU.list(shown, { pageButtons: 0 }) + (more.length ? `<details class="pf-more"><summary>${num(more.length)} more builds</summary>${CU.list(more, { pageButtons: 0 })}</details>` : '') : '')}
+      <details class="pf-help"><summary>How to read this section</summary><p>Think of printing as stacking transparent sheets, one per ink. Normal colour printing uses four sheets: cyan, magenta, yellow and black. This list tells you every colour recipe in your file and whether it needs any <b>extra</b> sheets (spot colours), uses the wrong kind of colour for print (RGB), or would put too much ink on the paper. If a colour sits in the top groups it is worth a look. If it is only in the CMYK builds, it is normal.</p></details>
+      ${group('Spot colours', 'print as their own plates', spot.length ? CU.list(spot, { pageButtons: 8 }) : '', H.spot)}
+      ${group('Registration', 'prints on every plate', reg.length ? CU.list(reg, { pageButtons: 8 }) : '', H.reg)}
+      ${group('RGB and Lab', 'not print colours', bad.length ? CU.list(bad.map(c => Object.assign({}, c, { problem: !profile.allowRgb })), { pageButtons: 8 }) : '', H.rgb)}
+      ${group('Gradients', '', grads.length ? CU.list(grads.map(c => Object.assign({}, c, { problem: c.family === 'RGB' && !profile.allowRgb })), { pageButtons: 6 }) : '', H.grad)}
+      ${group(`CMYK builds (${num(cmyk.length)})`, profile.maxInk ? `over ${profile.maxInk}% total ink are marked` : '', cmyk.length ? CU.list(shown, { pageButtons: 0 }) + (more.length ? `<details class="pf-more"><summary>${num(more.length)} more builds</summary>${CU.list(more, { pageButtons: 0 })}</details>` : '') : '', H.cmyk)}
       ${group('Grays', '', gray.length ? CU.list(gray, { pageButtons: 0 }) : '')}
       ${group('Images', 'by colour space', imgRows ? `<ul class="pf-imglist">${imgRows}</ul>` : '')}
       <p class="insp-note">Page blending space: <b>${esc(blendTxt)}</b>. Image ink and image content are not measured.</p></section>`;

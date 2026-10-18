@@ -1,6 +1,6 @@
 # Printworks
 
-**Version 1.8**
+**Version 1.8.1**
 
 Printworks is a browser-based print checker and typography tool for InDesign files. Drop in the PDF you are about to send to your printer and it checks bleed, fonts, image resolution and colour. Then, when you want to try a different typeface, open the IDML and see how the change would print. Nothing is uploaded; your files are read in your browser.
 
