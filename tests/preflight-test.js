@@ -86,6 +86,7 @@ async function cmykOnlyPdf() {
   assert(by('cmyk:80,70,70,100') && by('cmyk:80,70,70,100').tac === 320, 'rich black total ink = 320');
   assert(by('rgb:255,0,0') && by('rgb:0,0,255') && !by('rgb:51,102,153'), 'RGB fill and stroke counted; a colour that is set but never painted is not');
   assert(!cf.colours.some(c => c.kind === 'spot' && /black/i.test(c.label)), 'Separation named Black is not a spot colour');
+  { const pm = pf.pageMarks(cf, {}, 0); assert(pm.marks.some(m => m.id === 'vector-rgb' && m.box[0] === 60) && pm.marks.some(m => m.id === 'registration') && pm.marks.some(m => m.id === 'total-ink'), 'page marks carry positions for RGB, registration and total ink'); }
   assert(by('gray:50') && cf.colours.some(c => c.kind === 'registration'), 'gray and registration found');
   assert(cf.colours.filter(c => c.kind === 'gradient').length === 2 && cf.colours.find(c => c.kind === 'gradient' && c.family === 'RGB').rgb === '#ff0000', 'two gradients, RGB one runs from red');
   assert.deepStrictEqual(cf.overprintPages, [0]); assert.deepStrictEqual(cf.pages.map(p => p.blend), ['RGB', 'CMYK']);

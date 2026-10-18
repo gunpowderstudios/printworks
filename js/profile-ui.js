@@ -1,5 +1,5 @@
 /*
- * Printworks printer profile UI (v1.8)
+ * Printworks printer profile UI (v1.9)
  * One profile, shared by the PDF preflight and the typography print checks. Saved in this browser only.
  * Any change fires a "printworks:profile" event so each checker can re-evaluate instantly.
  */

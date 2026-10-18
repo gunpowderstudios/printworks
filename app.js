@@ -442,9 +442,10 @@ function renderPageTreatments(content){
 }
 async function openPdfPage(num){
  if(!state.pdfDoc)return;
- const box=$('#lightbox'),canvas=$('#lightboxCanvas');box.classList.remove('hidden');box.setAttribute('aria-hidden','false');$('#lightboxCaption').textContent='Page '+num+' · '+state.pdfFile.name;
+ const box=$('#lightbox'),canvas=$('#lightboxCanvas');box.classList.remove('hidden');box.setAttribute('aria-hidden','false');const ov=$('#lightboxOverlay');if(ov)ov.innerHTML='';const lg=$('#lightboxLegend');if(lg)lg.innerHTML='';$('#lightboxCaption').textContent='Page '+num+' · '+state.pdfFile.name;
  const page=await state.pdfDoc.getPage(num);const base=page.getViewport({scale:1});const maxW=Math.min(window.innerWidth-100,1100),maxH=window.innerHeight-130;const scale=Math.min(maxW/base.width,maxH/base.height,2);const viewport=page.getViewport({scale});
  canvas.width=Math.ceil(viewport.width);canvas.height=Math.ceil(viewport.height);await page.render({canvasContext:canvas.getContext('2d'),viewport}).promise;
+ try{if(window.PW&&PW.preflightUI&&PW.preflightUI.decoratePage)PW.preflightUI.decoratePage(num,viewport)}catch(e){console.error(e)}
 }
 function closeLightbox(){const box=$('#lightbox');box.classList.add('hidden');box.setAttribute('aria-hidden','true')}
 function moodFontStack(name){

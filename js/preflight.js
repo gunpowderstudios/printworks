@@ -1,5 +1,5 @@
 /*
- * Printworks PDF preflight (v1.8)
+ * Printworks PDF preflight (v1.9)
  *
  * extract(bytes)            reads facts from a PDF (slow, done once)
  * evaluate(facts, profile)  turns facts into findings against your printer profile (instant, re-run any time)
@@ -229,7 +229,7 @@
       throw e;
     }
     const ctx = doc.context; const pages = doc.getPages();
-    const facts = { bytes: bytes.length, pageCount: pages.length, pages: [], fonts: [], images: [], placements: [], colours: [], overprintPages: [],
+    const facts = { marks: {}, bytes: bytes.length, pageCount: pages.length, pages: [], fonts: [], images: [], placements: [], colours: [], overprintPages: [],
       spots: [], output: { pdfx: null, intent: null, identifier: null }, meta: {}, unreadablePages: [], inlineImages: 0, gradients: 0, patterns: 0 };
 
     try { facts.meta.producer = doc.getProducer() || ''; facts.meta.creator = doc.getCreator() || ''; } catch (e) { /* optional */ }
@@ -252,21 +252,22 @@
       if (!c) { c = Object.assign({ key, pages: new Set(), sources: new Set(), tints: new Set(), uses: 0 }, base); colourMap.set(key, c); }
       c.uses++; c.pages.add(pageIdx); c.sources.add(source); if (tint != null) c.tints.add(Math.round(tint * 100));
     }
-    function recordPaint(def, comps, pageIdx, source) {
+    function mark(pageIdx, box, k, label, t) { if (!box) return; const a = facts.marks[pageIdx] || (facts.marks[pageIdx] = []); if (a.length < 300) a.push({ k, b: box.map(x => Math.round(x * 10) / 10), l: label, t }); }
+    function recordPaint(def, comps, pageIdx, source, box) {
       if (!def || def.kind === 'pattern') return;
       const r = resolveColour(ctx, def, comps) || {}; const hex = r.rgb ? root.PW.colour.hex(r.rgb) : null;
       if (def.kind === 'gray') { const k = pct(1 - (r.gray != null ? r.gray : comps[0] || 0)); addColour('gray:' + k, { kind: 'gray', label: k === 0 ? 'White' : k === 100 ? 'Black (gray)' : 'Gray ' + k + '% K', rgb: hex, cmyk: null, tac: null }, pageIdx, source); }
-      else if (def.kind === 'rgb') { const v = [0, 1, 2].map(i => Math.round(255 * (comps[i] || 0))); addColour('rgb:' + v.join(','), { kind: 'rgb', label: 'RGB ' + v.join(' '), rgb: hex, cmyk: null, tac: null, icc: def.label !== 'DeviceRGB' }, pageIdx, source); }
-      else if (def.kind === 'cmyk') { const v = [0, 1, 2, 3].map(i => pct(comps[i] || 0)); addColour('cmyk:' + v.join(','), { kind: 'cmyk', label: `C${v[0]} M${v[1]} Y${v[2]} K${v[3]}`, rgb: hex, cmyk: v, tac: Math.round((v[0] + v[1] + v[2] + v[3]) * 10) / 10 }, pageIdx, source); }
-      else if (def.kind === 'lab') addColour('lab:' + comps.map(x => Math.round(x)).join(','), { kind: 'lab', label: 'Lab ' + comps.slice(0, 3).map(x => Math.round(x)).join(' '), rgb: hex, cmyk: null, tac: null }, pageIdx, source);
+      else if (def.kind === 'rgb') { const v = [0, 1, 2].map(i => Math.round(255 * (comps[i] || 0))); mark(pageIdx, box, 'rgb', 'RGB ' + v.join(' ')); addColour('rgb:' + v.join(','), { kind: 'rgb', label: 'RGB ' + v.join(' '), rgb: hex, cmyk: null, tac: null, icc: def.label !== 'DeviceRGB' }, pageIdx, source); }
+      else if (def.kind === 'cmyk') { const v = [0, 1, 2, 3].map(i => pct(comps[i] || 0)); if (v[0] + v[1] + v[2] + v[3] >= 200) mark(pageIdx, box, 'cmyk', `C${v[0]} M${v[1]} Y${v[2]} K${v[3]}`, Math.round((v[0] + v[1] + v[2] + v[3]) * 10) / 10); addColour('cmyk:' + v.join(','), { kind: 'cmyk', label: `C${v[0]} M${v[1]} Y${v[2]} K${v[3]}`, rgb: hex, cmyk: v, tac: Math.round((v[0] + v[1] + v[2] + v[3]) * 10) / 10 }, pageIdx, source); }
+      else if (def.kind === 'lab') { mark(pageIdx, box, 'lab', 'Lab colour'); addColour('lab:' + comps.map(x => Math.round(x)).join(','), { kind: 'lab', label: 'Lab ' + comps.slice(0, 3).map(x => Math.round(x)).join(' '), rgb: hex, cmyk: null, tac: null }, pageIdx, source); }
       else if (def.kind === 'sep') {
-        if (def.family === 'Registration') addColour('registration', { kind: 'registration', label: 'Registration', rgb: '#000000', cmyk: null, tac: null }, pageIdx, source);
-        else if (def.family === 'Spot') addSpot(def, def.spot[0], 0, comps, pageIdx, source);
-        else if (def.family === 'CMYK') { const a = evalFn(ctx, def.fn, comps); if (a) recordPaint(def.alt, a, pageIdx, source); }
+        if (def.family === 'Registration') { mark(pageIdx, box, 'reg', 'Registration'); } if (def.family === 'Registration') addColour('registration', { kind: 'registration', label: 'Registration', rgb: '#000000', cmyk: null, tac: null }, pageIdx, source);
+        else if (def.family === 'Spot') { mark(pageIdx, box, 'spot', def.spot[0]); addSpot(def, def.spot[0], 0, comps, pageIdx, source); }
+        else if (def.family === 'CMYK') { const a = evalFn(ctx, def.fn, comps); if (a) recordPaint(def.alt, a, pageIdx, source, box); }
       } else if (def.kind === 'devn') {
         const zero = comps.slice();
-        def.names.forEach((n, i) => { if (def.spot.includes(n) && (comps[i] || 0) > 0) { addSpot(def, n, i, comps, pageIdx, source); zero[i] = 0; } });
-        if (zero.some((v, i) => v > 0 && !def.spot.includes(def.names[i]))) { const a = evalFn(ctx, def.fn, zero); if (a) recordPaint(def.alt, a, pageIdx, source); }
+        def.names.forEach((n, i) => { if (def.spot.includes(n) && (comps[i] || 0) > 0) { mark(pageIdx, box, 'spot', n); addSpot(def, n, i, comps, pageIdx, source); zero[i] = 0; } });
+        if (zero.some((v, i) => v > 0 && !def.spot.includes(def.names[i]))) { const a = evalFn(ctx, def.fn, zero); if (a) recordPaint(def.alt, a, pageIdx, source, box); }
       }
     }
     function addSpot(def, name, idx, comps, pageIdx, source) {
@@ -309,16 +310,20 @@
     // flags: { mask: inside a soft mask or pattern tile (images there do not count for resolution) }
     function run(ops, res, ctm, inherit, pageIdx, depth, seen, mask) {
       const stack = [];
+      let pts = [], tm = [1, 0, 0, 1, 0, 0], tlm = [1, 0, 0, 1, 0, 0], fs = 0, tl = 0;
+      const tp = (x, y) => { const c = g.ctm; pts.push([x * c[0] + y * c[2] + c[4], x * c[1] + y * c[3] + c[5]]); };
+      const ptsBox = () => { if (!pts.length) return null; const xs = pts.map(q => q[0]), ys = pts.map(q => q[1]); const b = [Math.min.apply(null, xs), Math.min.apply(null, ys), Math.max.apply(null, xs), Math.max.apply(null, ys)]; return b.every(Number.isFinite) ? b : null; };
+      const textBox = () => { const o = concat(tm, g.ctm); const sz = Math.hypot(o[2], o[3]) * (fs || 1); const b = [o[4], o[5], o[4] + sz * 3, o[5] + sz]; return b.every(Number.isFinite) ? b : null; };
       let g = { ctm, fill: inherit.fill || { def: DEV.gray, comps: [0] }, stroke: inherit.stroke || { def: DEV.gray, comps: [0] }, tr: 0 };
-      const paintFill = () => {
+      const paintFill = box => {
         const c = g.fill; if (!c) return;
         if (c.pattern) { usePattern(c.pattern); return; }
-        recordPaint(c.def, c.comps, pageIdx, 'artwork');
+        recordPaint(c.def, c.comps, pageIdx, 'artwork', mask ? null : box);
       };
-      const paintStroke = () => {
+      const paintStroke = box => {
         const c = g.stroke; if (!c) return;
         if (c.pattern) { usePattern(c.pattern); return; }
-        recordPaint(c.def, c.comps, pageIdx, 'artwork');
+        recordPaint(c.def, c.comps, pageIdx, 'artwork', mask ? null : box);
       };
       function usePattern(name) {
         const pats = res && dget(ctx, res, 'Pattern'); const po = pats && dget(ctx, pats, name); const pd = dictOf(po); if (!pd) return;
@@ -344,6 +349,15 @@
             if (cur.def.kind === 'pattern' && nm) setColour(which, cur.def, [], nm); else setColour(which, cur.def, nums);
             break;
           }
+          case 'm': case 'l': if (args.length >= 2) tp(args[args.length - 2], args[args.length - 1]); break;
+          case 'c': if (args.length >= 6) { tp(args[args.length - 6], args[args.length - 5]); tp(args[args.length - 4], args[args.length - 3]); tp(args[args.length - 2], args[args.length - 1]); } break;
+          case 'v': case 'y': if (args.length >= 4) { tp(args[args.length - 4], args[args.length - 3]); tp(args[args.length - 2], args[args.length - 1]); } break;
+          case 're': if (args.length >= 4) { const [x, y, w, h] = args.slice(-4); tp(x, y); tp(x + w, y); tp(x + w, y + h); tp(x, y + h); } break;
+          case 'BT': tm = [1, 0, 0, 1, 0, 0]; tlm = tm; break;
+          case 'Tm': if (args.length >= 6) { tm = args.slice(-6); tlm = tm; } break;
+          case 'Td': case 'TD': if (args.length >= 2) { const ty = args[args.length - 1]; if (op === 'TD') tl = -ty; tlm = concat([1, 0, 0, 1, args[args.length - 2], ty], tlm); tm = tlm; } break;
+          case 'TL': tl = args[args.length - 1] || 0; break;
+          case 'T*': tlm = concat([1, 0, 0, 1, 0, -tl], tlm); tm = tlm; break;
           case 'Tr': g.tr = args[0]; break;
           case 'sh': { const nm = args[0] && args[0].n; const shs = nm && res && dget(ctx, res, 'Shading'); const sd = shs && dget(ctx, shs, nm); if (sd) recordShading(sd, res, pageIdx); break; }
           case 'gs': {
@@ -354,6 +368,7 @@
             break;
           }
           case 'Tf': {
+            fs = Number(args[1]) || 0;
             const nm = args[0] && args[0].n; const fonts = nm && res && dget(ctx, res, 'Font'); const fd = fonts && dget(ctx, fonts, nm);
             if (fd) { const id = fontIndex(fd); const key = id + ':' + pageIdx; if (!seen.fonts.has(key)) { seen.fonts.add(key); facts.fonts[id].pages.push(pageIdx); } }
             break;
@@ -370,9 +385,15 @@
             break;
           }
           default:
-            if (FILL_OPS.has(op)) paintFill();
-            if (STROKE_OPS.has(op)) paintStroke();
-            if (TEXT_OPS.has(op)) { if ([0, 2, 4, 6].includes(g.tr)) paintFill(); if ([1, 2, 5, 6].includes(g.tr)) paintStroke(); }
+            { const bx = FILL_OPS.has(op) || STROKE_OPS.has(op) ? ptsBox() : null;
+              if (FILL_OPS.has(op)) paintFill(bx);
+              if (STROKE_OPS.has(op)) paintStroke(bx);
+              if (FILL_OPS.has(op) || STROKE_OPS.has(op) || op === 'n') pts = []; }
+            if (TEXT_OPS.has(op)) {
+              if (op === "'" || op === '"') { tlm = concat([1, 0, 0, 1, 0, -tl], tlm); tm = tlm; }
+              const tb = textBox();
+              if ([0, 2, 4, 6].includes(g.tr)) paintFill(tb); if ([1, 2, 5, 6].includes(g.tr)) paintStroke(tb);
+            }
             break;
         }
       }
@@ -380,7 +401,9 @@
     function placeImage(rec, ctm, pageIdx, inMask) {
       if (rec.id >= 0) facts.images[rec.id].uses++;
       const wPt = Math.hypot(ctm[0], ctm[1]), hPt = Math.hypot(ctm[2], ctm[3]);
-      facts.placements.push({ page: pageIdx, image: rec.id, family: rec.family, label: rec.label, mask: !!rec.mask, softMask: !!inMask, px: [rec.w, rec.h], wPt, hPt,
+      const cs = [[0, 0], [1, 0], [1, 1], [0, 1]].map(([u, v]) => [u * ctm[0] + v * ctm[2] + ctm[4], u * ctm[1] + v * ctm[3] + ctm[5]]);
+      const box = [Math.min.apply(null, cs.map(q => q[0])), Math.min.apply(null, cs.map(q => q[1])), Math.max.apply(null, cs.map(q => q[0])), Math.max.apply(null, cs.map(q => q[1]))].map(x => Math.round(x * 10) / 10);
+      facts.placements.push({ page: pageIdx, box, image: rec.id, family: rec.family, label: rec.label, mask: !!rec.mask, softMask: !!inMask, px: [rec.w, rec.h], wPt, hPt,
         ppiX: wPt > 0 ? rec.w / (wPt / 72) : null, ppiY: hPt > 0 ? rec.h / (hPt / 72) : null });
     }
 
@@ -553,6 +576,29 @@
     return { findings: out, summary: sum, profile, colours, pageFlags, imageColour, blend: { cmyk: facts.pages.filter(p => p.blend === 'CMYK').length, rgb: blendRgb.length, none: facts.pages.filter(p => p.blend === 'none').length } };
   }
 
-  PW.preflight = { extract, evaluate, parseOps, concat, DEFAULTS, pageBleedPt };
+  /* Where the problems are on one page, for the highlight overlay. Boxes are in PDF page units. */
+  function pageMarks(f, profile, pi) {
+    const P = Object.assign({}, DEFAULTS, profile || {}); const out = []; const pg = f.pages[pi];
+    for (const pl of f.placements) {
+      if (pl.page !== pi || pl.mask || pl.softMask || !pl.box) continue;
+      const ppi = Math.min(pl.ppiX || Infinity, pl.ppiY || Infinity);
+      if (P.minPpi > 0 && isFinite(ppi) && ppi + 0.5 < P.minPpi) { const rgb = pl.family === 'RGB' && !P.allowRgb; out.push({ box: pl.box, level: 'error', id: 'image-ppi', ids: rgb ? ['image-ppi', 'image-rgb'] : ['image-ppi'], text: `Low resolution: ${Math.round(ppi)} ppi (needs ${P.minPpi})${rgb ? ', and RGB' : ''}` }); }
+      else if (pl.family === 'RGB' && !P.allowRgb) out.push({ box: pl.box, level: 'warn', id: 'image-rgb', text: 'RGB image' });
+      else if (pl.family === 'Lab') out.push({ box: pl.box, level: 'warn', id: 'colour-lab', text: 'Lab image' });
+      else out.push({ box: pl.box, level: 'ok', id: 'image-ok', text: `Image OK${isFinite(ppi) ? ': ' + Math.round(ppi) + ' ppi' : ''}` });
+    }
+    for (const m of (f.marks && f.marks[pi]) || []) {
+      const pt = m.b[2] - m.b[0] > 0 && m.k !== undefined;
+      if (m.k === 'rgb' && !P.allowRgb) out.push({ box: m.b, level: 'warn', id: 'vector-rgb', text: m.l + ' in text or artwork' });
+      else if (m.k === 'lab') out.push({ box: m.b, level: 'warn', id: 'colour-lab', text: m.l });
+      else if (m.k === 'spot') out.push({ box: m.b, level: P.allowSpot ? 'ok' : 'warn', id: 'spot', text: 'Spot colour: ' + m.l });
+      else if (m.k === 'reg') out.push({ box: m.b, level: 'warn', id: 'registration', text: 'Registration colour' });
+      else if (m.k === 'cmyk' && P.maxInk > 0 && m.t > P.maxInk + 0.5) out.push({ box: m.b, level: 'warn', id: 'total-ink', text: `${m.l} = ${m.t}% total ink` });
+    }
+    const bl = pg ? pageBleedPt(pg) : { known: false };
+    return { marks: out, trim: pg && pg.trim, bleed: pg && pg.bleed, media: pg && pg.media, bleedPt: bl.bleed, bleedKnown: bl.known, needBleedPt: P.bleedMm * MM };
+  }
+
+  PW.preflight = { extract, evaluate, pageMarks, parseOps, concat, DEFAULTS, pageBleedPt };
   if (typeof module !== 'undefined' && module.exports) module.exports = PW.preflight;
 })(typeof window !== 'undefined' ? window : globalThis);

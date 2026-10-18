@@ -2,6 +2,17 @@
 
 All notable changes to Printworks are recorded here.
 
+## 1.9 — 2026-10-18
+
+### Added
+- **Page popup shows where the problems are.** Click a page and the checker outlines what it found: images with low resolution or RGB colour, shapes in RGB, spot or registration colour, over-limit ink, text start points, plus trim and bleed lines. Red is a problem, amber is a check, green is OK.
+- **Green ticks**: "All good!" banner, a visible "What is working" list, tick marks on clean pages in the page map, and an "All good on this page!" line in the popup. Problems get a red cross and checks an amber mark.
+- Page images in the results are clickable and open the same popup.
+- The checker now records where things sit on each page (images, filled and stroked shapes, text start).
+
+### Notes
+- Text is marked at the point where it starts, not around the whole line. Gradients and whole-page settings (such as the blending space) are listed under the page rather than outlined.
+
 ## 1.8.3 — 2026-10-18
 
 ### Changed

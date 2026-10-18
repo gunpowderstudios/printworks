@@ -1,5 +1,5 @@
 /*
- * Printworks PDF preflight UI (v1.8)
+ * Printworks PDF preflight UI (v1.9)
  * Reads a PDF with PW.preflight, shows findings against the shared printer profile, and re-evaluates
  * instantly whenever the profile changes. Works on a PDF on its own, or alongside an IDML.
  */
@@ -10,6 +10,7 @@
   const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const num = n => Number(n).toLocaleString();
   const LABEL = { error: 'problem', warn: 'check', info: 'note', pass: 'ok' };
+  const ICON = { error: '\u2717', warn: '!', info: 'i', pass: '\u2713' };
   const MM = 72 / 25.4;
 
 
@@ -104,10 +105,10 @@
       <p class="insp-note">Page blending space: <b>${esc(blendTxt)}</b>. Image ink and image content are not measured.</p></section>`;
   }
   function pageMapHtml(res, count) {
-    const f = res.pageFlags; if (!f.some(x => x.rgb || x.spot || x.reg)) return '<section class="pf-map"><h3>Page map</h3><p class="insp-note">No page has spot colour, registration or RGB on it.</p></section>';
-    const cell = (x, i) => { const cls = x.reg ? 'pm-reg' : x.rgb ? 'pm-rgb' : x.spot ? 'pm-spot' : ''; const why = [x.spot && 'spot colour', x.rgb && 'RGB', x.reg && 'registration colour'].filter(Boolean).join(', '); return `<button type="button" class="pm ${cls}" data-page="${i + 1}" title="Page ${i + 1}${why ? ': ' + why : ''}">${i + 1}</button>`; };
-    return `<section class="pf-map"><h3>Page map</h3><p class="insp-note">Every page at a glance. Click a page to open it.</p>
-      <div class="pm-legend"><span class="pm pm-spot">spot</span><span class="pm pm-rgb">RGB</span><span class="pm pm-reg">registration</span><span class="pm">clear</span></div>
+    const f = res.pageFlags; const badPages = new Set(); for (const x of res.findings) if (x.level === 'error' || x.level === 'warn') for (const q of x.pages) badPages.add(q);
+    const cell = (x, i) => { const cls = x.reg ? 'pm-reg' : x.rgb ? 'pm-rgb' : x.spot ? 'pm-spot' : badPages.has(i) ? 'pm-bad' : 'pm-ok'; const why = [x.spot && 'spot colour', x.rgb && 'RGB', x.reg && 'registration colour', !x.spot && !x.rgb && !x.reg && badPages.has(i) && 'see the problems above'].filter(Boolean).join(', '); return `<button type="button" class="pm ${cls}" data-page="${i + 1}" title="Page ${i + 1}${why ? ': ' + why : ': all good'}">${cls === 'pm-ok' ? '\u2713' : ''}${i + 1}</button>`; };
+    return `<section class="pf-map"><h3>Page map</h3><p class="insp-note">Every page at a glance. Click a page to open it and see exactly where any problem is.</p>
+      <div class="pm-legend"><span class="pm pm-ok">\u2713 all good</span><span class="pm pm-bad">problem</span><span class="pm pm-spot">spot</span><span class="pm pm-rgb">RGB</span><span class="pm pm-reg">registration</span></div>
       <div class="pm-grid">${f.map(cell).join('')}</div></section>`;
   }
 
@@ -118,7 +119,7 @@
     const s = result.summary; const body = $('#pfBody');
     const verdict = s.error ? { cls: 'bad', head: `${s.error} problem${s.error === 1 ? '' : 's'} to fix before this goes to print`, sub: s.warn ? `plus ${s.warn} thing${s.warn === 1 ? '' : 's'} to check.` : '' }
       : s.warn ? { cls: 'warn', head: `${s.warn} thing${s.warn === 1 ? '' : 's'} to check`, sub: 'Nothing blocking was found, but these may matter to your printer.' }
-        : { cls: 'ok', head: 'Nothing found with these settings', sub: 'That is not a guarantee. Your printer\u2019s own preflight has the final word.' };
+        : { cls: 'ok', head: 'All good!', sub: 'That is not a guarantee. Your printer\u2019s own preflight has the final word.' };
     const media = facts.pages[0] ? (facts.pages[0].trim || facts.pages[0].media) : null;
     const fact = (k, v) => `<div><dt>${k}</dt><dd>${v}</dd></div>`;
     const real = facts.placements.filter(p => !p.mask && !p.softMask);
@@ -130,15 +131,15 @@
     const item = f => {
       const pages = f.pages.length ? `<div class="pf-pages">${f.pages.slice(0, 14).map(p => `<button type="button" class="mini-btn" data-page="${p + 1}">p.${p + 1}</button>`).join('')}${f.pages.length > 14 ? `<span class="insp-note">…and ${num(f.pages.length - 14)} more</span>` : ''}</div>` : '';
       const thumbs = (f.level === 'error' || f.level === 'warn') && f.pages.length ? `<div class="pf-thumbs" data-pages="${f.pages.slice(0, 3).join(',')}"></div>` : '';
-      return `<li class="pf-item pf-${f.level}"><div class="pc-head"><span class="lvl lvl-${f.level}">${LABEL[f.level]}</span><b>${esc(f.title)}</b>${f.pages.length ? `<span class="pc-count">${num(f.pages.length)} page${f.pages.length === 1 ? '' : 's'}</span>` : ''}</div><p class="insp-note">${esc(f.detail)}</p>${fixHtml(f)}${pages}${thumbs}</li>`;
+      return `<li class="pf-item pf-${f.level}"><div class="pc-head"><span class="lvl lvl-${f.level}"><i class="ico ico-${f.level}">${ICON[f.level]}</i>${LABEL[f.level]}</span><b>${esc(f.title)}</b>${f.pages.length ? `<span class="pc-count">${num(f.pages.length)} page${f.pages.length === 1 ? '' : 's'}</span>` : ''}</div><p class="insp-note">${esc(f.detail)}</p>${fixHtml(f)}${pages}${thumbs}</li>`;
     };
     const attention = result.findings.filter(f => f.level !== 'pass'), passed = result.findings.filter(f => f.level === 'pass');
-    body.innerHTML = `<div class="pf-verdict pf-v-${verdict.cls}"><h3>${esc(verdict.head)}</h3><p>${esc(verdict.sub)}</p></div>
+    body.innerHTML = `<div class="pf-verdict pf-v-${verdict.cls}"><h3><i class="ico ico-${verdict.cls === 'bad' ? 'error' : verdict.cls === 'warn' ? 'warn' : 'pass'}">${verdict.cls === 'bad' ? '\u2717' : verdict.cls === 'warn' ? '!' : '\u2713'}</i> ${esc(verdict.head)}</h3><p>${esc(verdict.sub)}</p></div>
       <dl class="insp-facts pf-facts">${facts_}</dl>
       ${attention.length ? `<ul class="pf-list">${attention.map(item).join('')}</ul>${nextHtml()}` : ''}
       ${coloursHtml(result, profile)}
       ${pageMapHtml(result, facts.pageCount)}
-      ${passed.length ? `<details class="pf-passed"><summary>${passed.length} check${passed.length === 1 ? '' : 's'} passed</summary><ul class="pf-list">${passed.map(item).join('')}</ul></details>` : ''}
+      ${passed.length ? `<section class="pf-good"><h3><i class="ico ico-pass">\u2713</i> What is working</h3><ul class="pf-list">${passed.map(item).join('')}</ul></section>` : ''}
       <p class="insp-note"><b>Checked:</b> page size, trim and bleed boxes, font embedding, image colour and resolution, RGB in text and artwork, spot colours, total ink in text and artwork, PDF/X. <b>Not checked:</b> ink coverage inside images, trapping, transparency flattening, and how the images actually look. Your printer\u2019s own preflight has the final word.</p>
       <div class="insp-actions"><button id="pfCopyBtn" class="ghost" type="button">Copy summary</button> <button id="pfJsonBtn" class="ghost" type="button">Download report (JSON)</button></div>`;
     body.querySelectorAll('[data-page]').forEach(b => b.onclick = () => { if (typeof state !== 'undefined' && state.pdfDoc && typeof openPdfPage === 'function') openPdfPage(Number(b.dataset.page)); });
@@ -156,11 +157,54 @@
         try {
           const page = await state.pdfDoc.getPage(p + 1); const base = page.getViewport({ scale: 1 }); const vp = page.getViewport({ scale: 110 / Math.max(base.width, base.height) });
           const wrap = document.createElement('figure'); wrap.className = 'pf-thumb'; const c = document.createElement('canvas'); c.width = Math.ceil(vp.width); c.height = Math.ceil(vp.height);
-          wrap.appendChild(c); const cap = document.createElement('figcaption'); cap.textContent = 'p.' + (p + 1); wrap.appendChild(cap); box.appendChild(wrap);
+          wrap.title = 'Open page ' + (p + 1) + ' and show where the problem is'; wrap.onclick = () => { if (typeof openPdfPage === 'function') openPdfPage(p + 1); }; wrap.appendChild(c); const cap = document.createElement('figcaption'); cap.textContent = 'p.' + (p + 1); wrap.appendChild(cap); box.appendChild(wrap);
           await page.render({ canvasContext: c.getContext('2d'), viewport: vp }).promise;
         } catch (e) { /* thumbnails are optional */ }
       }
     }
+  }
+
+  /* ---- page popup: outline what the checker found, in the right place on the page */
+  function decoratePage(num, vp) {
+    const ov = $('#lightboxOverlay'), lg = $('#lightboxLegend'); if (!ov || !lg || !facts || !result) return;
+    ov.innerHTML = ''; lg.innerHTML = '';
+    const pi = num - 1, profile = PW.printcheck.loadProfile();
+    const pm = PW.preflight.pageMarks(facts, profile, pi); const W = vp.width, H = vp.height;
+    const place = (el, box) => { const r = vp.convertToViewportRectangle(box); const x0 = Math.min(r[0], r[2]), x1 = Math.max(r[0], r[2]), y0 = Math.min(r[1], r[3]), y1 = Math.max(r[1], r[3]);
+      el.style.left = (x0 / W * 100) + '%'; el.style.top = (y0 / H * 100) + '%'; el.style.width = Math.max(1.2, (x1 - x0)) / W * 100 + '%'; el.style.height = Math.max(1.2, (y1 - y0)) / H * 100 + '%'; ov.appendChild(el); return el; };
+    // trim and bleed
+    const rect = b => [b.x, b.y, b.x + b.w, b.y + b.h];
+    const notes = [];
+    if (pm.trim) {
+      place(Object.assign(document.createElement('div'), { className: 'lb-box lb-trim', title: 'Trim: where the page is cut' }), rect(pm.trim));
+      const need = pm.needBleedPt;
+      if (need > 0) {
+        const t = pm.trim, bleedRect = [t.x - need, t.y - need, t.x + t.w + need, t.y + t.h + need];
+        const ok = pm.bleedPt + 0.05 >= need;
+        const el = place(Object.assign(document.createElement('div'), { className: 'lb-box ' + (ok ? 'lb-bleed-ok' : 'lb-bleed-bad'), title: ok ? 'Bleed is at least ' + profile.bleedMm + ' mm' : 'Bleed needed: artwork should reach this line' }), bleedRect);
+        const tag = document.createElement('span'); tag.className = 'lb-tag'; tag.textContent = ok ? '\u2713 bleed ' + profile.bleedMm + ' mm' : '\u2717 bleed missing: should reach here'; el.appendChild(tag);
+        notes.push(ok ? { level: 'ok', text: 'Bleed is at least ' + profile.bleedMm + ' mm' } : { level: 'error', text: 'Not enough bleed (needs ' + profile.bleedMm + ' mm past the trim)' });
+      }
+    } else notes.push({ level: 'warn', text: 'No TrimBox in this PDF, so trim and bleed cannot be drawn' });
+    // things found on the page
+    const items = [];
+    pm.marks.forEach((m, i) => {
+      const el = document.createElement('div'); el.className = 'lb-mark lb-' + m.level; el.title = m.text; el.dataset.i = i;
+      if (m.level !== 'ok') { const tag = document.createElement('span'); tag.className = 'lb-tag'; tag.textContent = (m.level === 'error' ? '\u2717 ' : '! ') + m.text; el.appendChild(tag); }
+      place(el, m.box); items.push({ m, el });
+    });
+    // summary under the page
+    const count = lv => pm.marks.filter(m => m.level === lv).length;
+    const issueFindings = result.findings.filter(f => (f.level === 'error' || f.level === 'warn') && f.pages.includes(pi));
+    const nErr = count('error') + notes.filter(n => n.level === 'error').length, nWarn = count('warn') + notes.filter(n => n.level === 'warn').length, nOk = count('ok') + notes.filter(n => n.level === 'ok').length;
+    const allGood = !nErr && !nWarn && !issueFindings.length;
+    const group = {}; for (const { m } of items.filter(x => x.m.level !== 'ok')) { const k = m.level + '|' + m.text; group[k] = (group[k] || 0) + 1; }
+    const rows = notes.filter(n => n.level !== 'ok').map(n => ({ level: n.level, text: n.text, n: 1 })).concat(Object.entries(group).map(([k, n]) => ({ level: k.split('|')[0], text: k.slice(k.indexOf('|') + 1), n })));
+    const covered = new Set(pm.marks.filter(m => m.level !== 'ok').flatMap(m => m.ids || [m.id]));
+    for (const f of issueFindings) if (!covered.has(f.id) && !(f.id === 'bleed')) rows.push({ level: f.level, text: f.title + ' (applies to the whole page; no spot to outline)', n: 1 });
+    lg.innerHTML = `<div class="lb-verdict ${allGood ? 'is-good' : nErr ? 'is-bad' : 'is-warn'}">${allGood ? '<i class="ico ico-pass">\u2713</i> All good on this page!' : nErr ? `<i class="ico ico-error">\u2717</i> ${nErr} problem${nErr === 1 ? '' : 's'} on this page` + (nWarn ? `, ${nWarn} to check` : '') : `<i class="ico ico-warn">!</i> ${nWarn} thing${nWarn === 1 ? '' : 's'} to check on this page`}${nOk ? ` <span class="lb-okn">\u00b7 ${nOk} OK</span>` : ''}</div>` +
+      (rows.length ? `<ul class="lb-list">${rows.map(r => `<li class="lbl-${r.level}"><i class="ico ico-${r.level}">${ICON[r.level]}</i>${esc(r.text)}${r.n > 1 ? ' <b>\u00d7' + r.n + '</b>' : ''}</li>`).join('')}</ul>` : '') +
+      `<p class="lb-key"><span class="k k-err"></span>problem <span class="k k-warn"></span>to check <span class="k k-ok"></span>OK <span class="k k-trim"></span>trim line <span class="insp-note">Text is marked at the point where it starts.</span></p>`;
   }
   function thumbsReady() { if (facts) drawThumbs(); }
 
@@ -185,5 +229,5 @@
   }
 
   document.addEventListener('printworks:profile', () => { if (facts) render(); });
-  PW.preflightUI = { start, reset, refresh: render, thumbsReady, get result() { return result; } };
+  PW.preflightUI = { start, reset, refresh: render, thumbsReady, decoratePage, get result() { return result; } };
 })(typeof window !== 'undefined' ? window : globalThis);

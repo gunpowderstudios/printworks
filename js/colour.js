@@ -1,5 +1,5 @@
 /*
- * Printworks colour maths (v1.8). Shared by the IDML model and the PDF preflight.
+ * Printworks colour maths (v1.9). Shared by the IDML model and the PDF preflight.
  * Everything here is an ON-SCREEN APPROXIMATION for swatches. It never changes a colour in any file.
  * CMYK -> RGB interpolates between the usual process-ink corner colours (no ICC profile involved).
  */

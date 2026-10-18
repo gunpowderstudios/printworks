@@ -1,5 +1,5 @@
 /*
- * Printworks panels (v1.8): font map, print checks, verified export.
+ * Printworks panels (v1.9): font map, print checks, verified export.
  * UI glue only. The work is done by PW.fontmap and PW.printcheck.
  */
 (function (root) {

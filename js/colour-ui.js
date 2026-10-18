@@ -1,5 +1,5 @@
 /*
- * Printworks colour swatches (v1.8): shared by the PDF preflight and the IDML inspector.
+ * Printworks colour swatches (v1.9): shared by the PDF preflight and the IDML inspector.
  * Swatch colours are on-screen approximations. They never alter any file.
  */
 (function (root) {
