@@ -118,3 +118,4 @@ footer{border-top:1px solid var(--line);padding:25px;text-align:center;font-size
 .pf-fix,.pf-next{margin-top:8px;font-size:.92rem}.pf-fix summary,.pf-next summary{cursor:pointer;color:var(--accent,#c2410c);font-weight:600}.pf-fix ol,.pf-next ol{margin:8px 0 0;padding-left:22px;line-height:1.5}.pf-next{margin-top:18px;padding:12px 14px;border:1px solid var(--line);border-radius:8px}
 
 .pf-help{margin:4px 0 8px;font-size:.9rem}.pf-help summary{cursor:pointer;color:var(--accent,#c2410c)}.pf-help p{margin:6px 0 0;line-height:1.55;max-width:70ch}
+footer a{color:inherit;text-decoration:underline;text-underline-offset:3px}footer a:hover{color:var(--accent,#c2410c)}
