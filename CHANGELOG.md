@@ -2,6 +2,11 @@
 
 All notable changes to Printworks are recorded here.
 
+## 1.8.3 — 2026-10-18
+
+### Changed
+- Footer now reads "Printworks © Gunpowder Studios 2026".
+
 ## 1.8.2 — 2026-10-18
 
 ### Added
