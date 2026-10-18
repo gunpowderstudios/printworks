@@ -1,5 +1,5 @@
 /*
- * Printworks print checks (v1.7)
+ * Printworks print checks (v1.8)
  *
  * Checks the typography against your printer's rules, using the sizes, colours and frames in the IDML.
  * Optionally applies a font map first, so you see what the NEW fonts would do.

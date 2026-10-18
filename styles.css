@@ -113,3 +113,6 @@ footer{border-top:1px solid var(--line);padding:25px;text-align:center;font-size
 .pm{font:10px/1 monospace;min-width:26px;height:22px;padding:0 5px;border:1px solid var(--line);background:#fff;color:var(--muted);display:inline-flex;align-items:center;justify-content:center;cursor:pointer}.pm-legend .pm{cursor:default}
 .pm-spot{background:#f5e6c4;border-color:#d9a441;color:#7a5010;font-weight:700}.pm-rgb{background:#f4d9d1;border-color:var(--accent);color:#8f3320;font-weight:700}.pm-reg{background:#171717;border-color:#171717;color:#fff;font-weight:700}
 .pm:focus-visible,.mini-btn:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+
+/* v1.8 fix advice */
+.pf-fix,.pf-next{margin-top:8px;font-size:.92rem}.pf-fix summary,.pf-next summary{cursor:pointer;color:var(--accent,#c2410c);font-weight:600}.pf-fix ol,.pf-next ol{margin:8px 0 0;padding-left:22px;line-height:1.5}.pf-next{margin-top:18px;padding:12px 14px;border:1px solid var(--line);border-radius:8px}

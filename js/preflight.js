@@ -1,5 +1,5 @@
 /*
- * Printworks PDF preflight (v1.7)
+ * Printworks PDF preflight (v1.8)
  *
  * extract(bytes)            reads facts from a PDF (slow, done once)
  * evaluate(facts, profile)  turns facts into findings against your printer profile (instant, re-run any time)
@@ -75,7 +75,8 @@
     if (kind === 'Lab') return { family: 'Lab', label: 'Lab', spot: [], kind: 'lab' };
     if (kind === 'Separation') {
       const s = nameStr(look(ctx, a.get(1))) || 'Separation';
-      return { family: s === 'All' ? 'Registration' : s === 'None' ? 'Other' : 'Spot', label: s === 'All' ? 'Registration' : 'Separation', spot: s === 'None' || s === 'All' ? [] : [s], names: [s], kind: 'sep', alt: csDef(ctx, a.get(2), res, depth + 1), fn: look(ctx, a.get(3)) };
+      const proc = PROCESS.has(s.toLowerCase());
+      return { family: s === 'All' ? 'Registration' : s === 'None' ? 'Other' : proc ? 'CMYK' : 'Spot', label: s === 'All' ? 'Registration' : 'Separation', spot: s === 'None' || s === 'All' || proc ? [] : [s], names: [s], kind: 'sep', alt: csDef(ctx, a.get(2), res, depth + 1), fn: look(ctx, a.get(3)) };
     }
     if (kind === 'DeviceN') {
       const na = arr(look(ctx, a.get(1))); const names = [];
@@ -261,6 +262,7 @@
       else if (def.kind === 'sep') {
         if (def.family === 'Registration') addColour('registration', { kind: 'registration', label: 'Registration', rgb: '#000000', cmyk: null, tac: null }, pageIdx, source);
         else if (def.family === 'Spot') addSpot(def, def.spot[0], 0, comps, pageIdx, source);
+        else if (def.family === 'CMYK') { const a = evalFn(ctx, def.fn, comps); if (a) recordPaint(def.alt, a, pageIdx, source); }
       } else if (def.kind === 'devn') {
         const zero = comps.slice();
         def.names.forEach((n, i) => { if (def.spot.includes(n) && (comps[i] || 0) > 0) { addSpot(def, n, i, comps, pageIdx, source); zero[i] = 0; } });
@@ -493,7 +495,12 @@
       const detail = spotCols.slice(0, 8).map(c => `${c.label}${c.tints.length && c.tints.some(t => t < 100) ? ' (tints ' + c.tints.join(', ') + '%)' : ''} on ${c.pages.length} page${c.pages.length === 1 ? '' : 's'} (${pageList(c.pages, 5)})`).join('; ');
       add(profile.allowSpot ? 'info' : 'warn', 'spot', 'Spot colours in the file', `${detail}. ${profile.allowSpot ? 'Your profile says this job uses spot colours.' : 'These print as extra plates. If the job is CMYK only, convert them to CMYK in InDesign (Swatches > Convert to Process) and export again.'}`, uniq(spotCols.flatMap(c => c.pages)));
     }
-    if (regCols.length) add('warn', 'registration', 'Registration colour is used', 'Registration prints on every plate. It belongs on crop marks only. If it is on text or artwork, change it to a real colour.', uniq(regCols.flatMap(c => c.pages)));
+    if (regCols.length) {
+      const regPages = uniq(regCols.flatMap(c => c.pages));
+      const hasMarkRoom = i => { const p = facts.pages[i]; return p && p.trim && p.media && (p.media.w - p.trim.w > 2 || p.media.h - p.trim.h > 2); };
+      if (regPages.every(hasMarkRoom)) add('info', 'registration', 'Registration colour found, probably printer\u2019s marks', 'These pages have space outside the trim for marks, so this is most likely crop marks or registration targets, which is correct. It would only be a problem on text or artwork inside the trim.', regPages);
+      else add('warn', 'registration', 'Registration colour is used', 'Registration prints on every plate. It belongs on crop marks only, and these pages have no space outside the trim for marks, so it is probably on text or artwork. Change it to a real colour.', regPages);
+    }
 
     // ---- total ink (text and artwork; images are not checked)
     const cmykCols = cols.filter(c => c.kind === 'cmyk' && c.tac != null);

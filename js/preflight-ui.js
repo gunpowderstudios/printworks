@@ -1,5 +1,5 @@
 /*
- * Printworks PDF preflight UI (v1.7)
+ * Printworks PDF preflight UI (v1.8)
  * Reads a PDF with PW.preflight, shows findings against the shared printer profile, and re-evaluates
  * instantly whenever the profile changes. Works on a PDF on its own, or alongside an IDML.
  */
@@ -11,6 +11,31 @@
   const num = n => Number(n).toLocaleString();
   const LABEL = { error: 'problem', warn: 'check', info: 'note', pass: 'ok' };
   const MM = 72 / 25.4;
+
+
+  /* Plain steps for fixing each kind of finding, in InDesign terms. */
+  const FIX = {
+    'page-size': ['Check the page sizes in Pages panel > Page Size. Mixed sizes are fine for a rulebook with a cover, but not for a card sheet.', 'If one page is wrong, fix it in the InDesign file and export again.'],
+    bleed: ['In InDesign, File > Document Setup > Bleed and Slug. Set Bleed to the amount your printer asks for (usually 3 mm) on all four sides.', 'Extend backgrounds and images out to the red bleed line.', 'File > Export > Adobe PDF (Print). Under Marks and Bleeds tick Use Document Bleed Settings.', 'Check the PDF again here.'],
+    fonts: ['Open the export dialog: File > Export > Adobe PDF (Print) > Advanced. Set Subset fonts below 100%.', 'If a font still will not embed, its licence may forbid it. Use a different font or convert that text to outlines (Type > Create Outlines) on a copy.'],
+    'fonts-type3': ['Type 3 fonts usually come from old or odd font formats. Replace the font with an OpenType or TrueType version, or outline the text on a copy of the file.'],
+    'image-rgb': ['Best: Window > Links to find the RGB images, convert them to CMYK in Photoshop (Edit > Convert to Profile) and relink.', 'Or leave them and export with Compatibility: PDF/X-4 and Colour Conversion set to Convert to Destination, using your printer’s profile. Ask the printer which they prefer.', 'Export and check again.'],
+    'vector-rgb': ['Window > Colour > Swatches: look for swatches with a small RGB icon. Delete them or change their Colour Mode to CMYK.', 'Check any colour you picked in a placed Illustrator or SVG file.', 'Export and check again.'],
+    'gradient-rgb': ['Open the Gradient swatch. Make sure each colour stop is a CMYK swatch, not RGB.', 'Gradients inside placed Illustrator files need fixing in Illustrator (File > Document Colour Mode > CMYK).'],
+    'blend-rgb': ['Edit > Transparency Blend Space > Document CMYK, then export again.'],
+    'colour-lab': ['Replace Lab swatches with CMYK ones, or convert them in the placed file.'],
+    spot: ['If the job is CMYK only: Swatches panel > double-click each Pantone swatch > change Colour Type to Process and Colour Mode to CMYK. Or Swatches menu > Ink Manager > tick All Spots to Process.', 'If the job does use a spot colour, tick “This job uses spot colours” in the printer profile above and leave it.', 'Export and check again. Pantone colours in placed PDFs or Illustrator files need converting in those files.'],
+    registration: ['Find objects filled with the [Registration] swatch. Select one, then Edit > Select Similar, or look at the Swatches panel for the black swatch with the cross.', 'Change it to a real colour such as C0 M0 Y0 K100. Keep [Registration] for crop marks only.', 'If you want marks, export with Marks and Bleeds > Crop Marks, which uses it correctly.'],
+    'total-ink': ['Lower the darkest CMYK builds below your limit, for example turn C75 M68 Y67 K90 rich black into a build that totals 300% or less.', 'Or send the file to the printer’s profile with Convert to Destination, which limits ink for you.'],
+    overprint: ['Usually nothing. InDesign overprints 100% black by default, which is good for black text.', 'If a white or coloured object disappears in print, select it and untick Window > Output > Attributes > Overprint Fill.'],
+    'image-ppi': ['Window > Links shows the effective ppi of each image. Replace the low ones with higher resolution versions, or shrink them in the layout.', 'Do not just upsize in Photoshop, as that does not add detail.'],
+    pdfx: ['Only if your printer asks for it: File > Export > Adobe PDF (Print) > Standard: PDF/X-1a:2001 or PDF/X-4.'],
+    'idml-pages': ['The PDF and IDML are probably from different versions. Export a fresh PDF from the current InDesign file.'],
+    'idml-size': ['Check Document Setup in InDesign against the PDF trim size, then export again.']
+  };
+  const fixHtml = f => FIX[f.id] && f.level !== 'pass' ? `<details class="pf-fix"><summary>How to fix it</summary><ol>${FIX[f.id].map(t => `<li>${esc(t)}</li>`).join('')}</ol></details>` : '';
+  const NEXT = ['Fix the artwork in your InDesign file, using the steps under each item.', 'Export a new PDF with the same export preset as before.', 'Drop the new PDF in here again and check the list is clear.', 'When it passes, commit the InDesign file, the PDF and this report to your repo (for example: git add . && git commit -m "Artwork v2, preflight clean" && git push), so each print run has its own record.'];
+  const nextHtml = () => `<details class="pf-next"><summary>What to do next</summary><ol>${NEXT.map(t => `<li>${esc(t)}</li>`).join('')}</ol></details>`;
 
   let facts = null, result = null, runId = 0, fileInfo = null, thumbToken = 0;
 
@@ -96,16 +121,16 @@
     const item = f => {
       const pages = f.pages.length ? `<div class="pf-pages">${f.pages.slice(0, 14).map(p => `<button type="button" class="mini-btn" data-page="${p + 1}">p.${p + 1}</button>`).join('')}${f.pages.length > 14 ? `<span class="insp-note">…and ${num(f.pages.length - 14)} more</span>` : ''}</div>` : '';
       const thumbs = (f.level === 'error' || f.level === 'warn') && f.pages.length ? `<div class="pf-thumbs" data-pages="${f.pages.slice(0, 3).join(',')}"></div>` : '';
-      return `<li class="pf-item pf-${f.level}"><div class="pc-head"><span class="lvl lvl-${f.level}">${LABEL[f.level]}</span><b>${esc(f.title)}</b>${f.pages.length ? `<span class="pc-count">${num(f.pages.length)} page${f.pages.length === 1 ? '' : 's'}</span>` : ''}</div><p class="insp-note">${esc(f.detail)}</p>${pages}${thumbs}</li>`;
+      return `<li class="pf-item pf-${f.level}"><div class="pc-head"><span class="lvl lvl-${f.level}">${LABEL[f.level]}</span><b>${esc(f.title)}</b>${f.pages.length ? `<span class="pc-count">${num(f.pages.length)} page${f.pages.length === 1 ? '' : 's'}</span>` : ''}</div><p class="insp-note">${esc(f.detail)}</p>${fixHtml(f)}${pages}${thumbs}</li>`;
     };
     const attention = result.findings.filter(f => f.level !== 'pass'), passed = result.findings.filter(f => f.level === 'pass');
     body.innerHTML = `<div class="pf-verdict pf-v-${verdict.cls}"><h3>${esc(verdict.head)}</h3><p>${esc(verdict.sub)}</p></div>
       <dl class="insp-facts pf-facts">${facts_}</dl>
-      ${attention.length ? `<ul class="pf-list">${attention.map(item).join('')}</ul>` : ''}
+      ${attention.length ? `<ul class="pf-list">${attention.map(item).join('')}</ul>${nextHtml()}` : ''}
       ${coloursHtml(result, profile)}
       ${pageMapHtml(result, facts.pageCount)}
       ${passed.length ? `<details class="pf-passed"><summary>${passed.length} check${passed.length === 1 ? '' : 's'} passed</summary><ul class="pf-list">${passed.map(item).join('')}</ul></details>` : ''}
-      <p class="insp-note"><b>Checked:</b> page size, trim and bleed boxes, font embedding, image colour and resolution, RGB in text and artwork, spot colours, PDF/X. <b>Not checked:</b> total ink coverage, overprint and trapping, transparency flattening, and how the images actually look. Your printer\u2019s own preflight has the final word.</p>
+      <p class="insp-note"><b>Checked:</b> page size, trim and bleed boxes, font embedding, image colour and resolution, RGB in text and artwork, spot colours, total ink in text and artwork, PDF/X. <b>Not checked:</b> ink coverage inside images, trapping, transparency flattening, and how the images actually look. Your printer\u2019s own preflight has the final word.</p>
       <div class="insp-actions"><button id="pfCopyBtn" class="ghost" type="button">Copy summary</button> <button id="pfJsonBtn" class="ghost" type="button">Download report (JSON)</button></div>`;
     body.querySelectorAll('[data-page]').forEach(b => b.onclick = () => { if (typeof state !== 'undefined' && state.pdfDoc && typeof openPdfPage === 'function') openPdfPage(Number(b.dataset.page)); });
     $('#pfCopyBtn').onclick = copySummary; $('#pfJsonBtn').onclick = downloadJson;
@@ -143,7 +168,7 @@
     setTimeout(() => { btn.textContent = 'Copy summary'; }, 1800);
   }
   function downloadJson() {
-    const out = { printworks: '1.7', file: fileInfo.name, profile: result.profile, summary: result.summary, findings: result.findings,
+    const out = { printworks: '1.8', file: fileInfo.name, profile: result.profile, summary: result.summary, findings: result.findings,
       facts: { pages: facts.pageCount, fonts: facts.fonts.map(f => ({ name: f.name, type: f.type, embedded: f.embedded, subset: f.subset })), images: facts.images.length, placements: facts.placements.length, spots: facts.spots, output: facts.output, meta: facts.meta } };
     const blob = new Blob([JSON.stringify(out, null, 1)], { type: 'application/json' });
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = fileInfo.name.replace(/\.pdf$/i, '') + '-preflight.json';

@@ -1,5 +1,5 @@
 /*
- * Printworks structure inspector (v1.7)
+ * Printworks structure inspector (v1.8)
  *
  * Reads the IDML through PW.idml, then shows:
  *   - how ready each text frame is for the upcoming page renderer

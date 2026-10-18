@@ -2,6 +2,17 @@
 
 All notable changes to Printworks are recorded here.
 
+## 1.8 — 2026-10-18
+
+### Added
+- **"How to fix it" under every problem and check** in the PDF preflight, with plain InDesign steps (bleed, RGB, Pantone to CMYK, total ink, resolution, fonts, registration).
+- **"What to do next"** checklist: fix the artwork, export again, check again, then commit to your repo.
+
+### Fixed
+- A separation named Black, Cyan, Magenta or Yellow is now treated as process colour, not a spot colour.
+- Registration colour on pages with space outside the trim is reported as a note (probably printer's marks). It stays a warning when there is no room for marks.
+- The "Not checked" note no longer says total ink is unchecked.
+
 ## 1.7 — 2026-10-05
 
 ### Added

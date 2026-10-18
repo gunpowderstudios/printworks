@@ -37,14 +37,15 @@ async function colourPdf() {
   const sampled = sep('SAMPLED#20GREEN', ctx.register(ctx.stream(new Uint8Array([0, 0, 0, 0, 255, 0, 255, 0]), { FunctionType: 0, Domain: [0, 1], Range: [0, 1, 0, 1, 0, 1, 0, 1], Size: [2], BitsPerSample: 8 }))); // type 0
   const blackN = ctx.obj([N('DeviceN'), ctx.obj([N('Black')]), N('DeviceCMYK'), ctx.register(ctx.stream('{0 0 0 4 -1 roll}', { FunctionType: 4, Domain: [0, 1], Range: [0, 1, 0, 1, 0, 1, 0, 1] }))]); // type 4
   const reg = sep('All', fn2([1, 1, 1, 1]));
+  const blackSep = sep('Black', fn2([0, 0, 0, 1]));
   const shRgb = ctx.obj({ ShadingType: 2, ColorSpace: N('DeviceRGB'), Coords: [0, 0, 100, 0], Function: fn2([0, 0, 1], [1, 0, 0]) });
   const shCmyk = ctx.obj({ ShadingType: 2, ColorSpace: N('DeviceCMYK'), Coords: [0, 0, 100, 0], Function: fn2([1, 0, 0, 0]) });
   const gs = ctx.obj({ Type: N('ExtGState'), OP: true, op: true });
   const mk = (content, blend) => { const p = doc.addPage([200, 200]);
-    p.node.set(N('Resources'), ctx.obj({ ColorSpace: { CS0: pantone, CS1: blackN, CS2: reg, CS3: sampled }, Shading: { Sh0: shRgb, Sh1: shCmyk }, ExtGState: { GS0: gs } }));
+    p.node.set(N('Resources'), ctx.obj({ ColorSpace: { CS0: pantone, CS1: blackN, CS2: reg, CS3: sampled, CS4: blackSep }, Shading: { Sh0: shRgb, Sh1: shCmyk }, ExtGState: { GS0: gs } }));
     p.node.set(N('Group'), ctx.obj({ Type: N('Group'), S: N('Transparency'), CS: N(blend) }));
     p.node.set(N('Contents'), ctx.register(ctx.stream(content))); return p; };
-  mk(['/GS0 gs', '/CS0 cs 1 scn 0 0 50 50 re f', '/CS0 cs 0.5 scn 60 0 50 50 re f', '/CS1 cs 1 scn 120 0 40 40 re f', '/CS3 cs 1 scn 0 100 20 20 re f',
+  mk(['/GS0 gs', '/CS0 cs 1 scn 0 0 50 50 re f', '/CS0 cs 0.5 scn 60 0 50 50 re f', '/CS1 cs 1 scn 120 0 40 40 re f', '/CS3 cs 1 scn 0 100 20 20 re f', '/CS4 cs 0.5 scn 30 100 20 20 re f',
     '0 0 0 1 k 0 60 20 20 re f', '0.8 0.7 0.7 1 k 30 60 20 20 re f', '1 0 0 rg 60 60 20 20 re f', '0.5 g 90 60 20 20 re f', '/CS2 cs 1 scn 120 60 20 20 re f',
     '/Sh0 sh /Sh1 sh', '0 0 1 RG 100 100 m 150 150 l S', '0.2 0.4 0.6 rg'].join('\n'), 'DeviceRGB');   // last colour is SET but never painted
   mk('0 0 0 1 k 0 0 10 10 re f', 'DeviceCMYK');
@@ -84,6 +85,7 @@ async function cmykOnlyPdf() {
   assert(by('cmyk:0,0,0,100').uses >= 2 && by('cmyk:0,0,0,100').pages.join() === '0,1', 'DeviceN [Black] through a PostScript (type 4) function becomes K100');
   assert(by('cmyk:80,70,70,100') && by('cmyk:80,70,70,100').tac === 320, 'rich black total ink = 320');
   assert(by('rgb:255,0,0') && by('rgb:0,0,255') && !by('rgb:51,102,153'), 'RGB fill and stroke counted; a colour that is set but never painted is not');
+  assert(!cf.colours.some(c => c.kind === 'spot' && /black/i.test(c.label)), 'Separation named Black is not a spot colour');
   assert(by('gray:50') && cf.colours.some(c => c.kind === 'registration'), 'gray and registration found');
   assert(cf.colours.filter(c => c.kind === 'gradient').length === 2 && cf.colours.find(c => c.kind === 'gradient' && c.family === 'RGB').rgb === '#ff0000', 'two gradients, RGB one runs from red');
   assert.deepStrictEqual(cf.overprintPages, [0]); assert.deepStrictEqual(cf.pages.map(p => p.blend), ['RGB', 'CMYK']);
