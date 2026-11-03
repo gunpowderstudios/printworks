@@ -42,6 +42,7 @@ function init(){
 async function handlePdfFirst(file){
  if(!file)return;
  if(!/\.pdf$/i.test(file.name))return alert('Please choose a PDF file.');
+ if(window.PWLoading)PWLoading.show();
  try{
   const bytes=new Uint8Array(await file.arrayBuffer());
   state.pdfOnly=true;state.pdfFile=file;state.pdfDoc=null;state.scan=null;
@@ -52,10 +53,12 @@ async function handlePdfFirst(file){
   if(window.PW&&PW.preflightUI)PW.preflightUI.start(bytes,file);
   getPdfJs().then(async pdfjs=>{state.pdfDoc=await pdfjs.getDocument({data:bytes.slice()}).promise;if(window.PW&&PW.preflightUI)PW.preflightUI.thumbsReady()}).catch(e=>console.warn('Page images unavailable',e));
  }catch(err){console.error(err);alert('Printworks could not read this PDF. '+err.message)}
+ finally{if(window.PWLoading)PWLoading.hide()}
 }
 async function handleFile(file){
  if(!file)return;
  if(!file.name.toLowerCase().endsWith('.idml'))return alert('Version 1.7 currently accepts IDML files, with an optional companion PDF.');
+ if(window.PWLoading)PWLoading.show();
  try{
   $('#healthBadge').textContent='Reading…';
   const zip=await JSZip.loadAsync(file);
@@ -71,6 +74,7 @@ async function handleFile(file){
   $('.hero').classList.add('hidden');$('#workspace').classList.remove('hidden');
   $('#workspace').scrollIntoView({behavior:'smooth',block:'start'});
  }catch(err){console.error(err);alert('Printworks could not read this IDML. '+err.message)}
+ finally{if(window.PWLoading)PWLoading.hide()}
 }
 async function textFile(zip,path){const f=zip.file(path);return f?await f.async('string'):''}
 async function readFolder(zip,prefix){
@@ -362,6 +366,7 @@ async function getPdfJs(){
 async function handlePDF(file){
  if(!file)return;
  if(!file.name.toLowerCase().endsWith('.pdf'))return alert('Please choose a PDF file.');
+ if(window.PWLoading)PWLoading.show();
  try{
   $('#pdfBtn').disabled=true;$('#pdfBtn').textContent='Rendering…';
   const pdfjs=await getPdfJs();
@@ -376,7 +381,7 @@ async function handlePDF(file){
   await renderPdfGrid();
   if(window.PW&&PW.inspector)PW.inspector.onPdfReady();
  }catch(err){console.error(err);alert('Printworks could not render this PDF. '+err.message);$('#pdfBtn').textContent='Add PDF preview'}
- finally{$('#pdfBtn').disabled=false}
+ finally{$('#pdfBtn').disabled=false;if(window.PWLoading)PWLoading.hide()}
 }
 async function renderPdfGrid(){
  if(!state.pdfDoc)return;
