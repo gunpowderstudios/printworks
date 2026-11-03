@@ -81,7 +81,7 @@
 <div class="wrap">
   <header>
     <div><h1>Gunpowder PDF Grid Maker</h1><div class="tag">Turn single-page PDFs into cards or tokens on a grid - now that's magic!</div></div>
-    <div style="display:flex;gap:8px;align-items:center"><div class="local">Runs locally in your browser</div><div class="local">v4.9</div></div>
+    <div style="display:flex;gap:8px;align-items:center"><div class="local">Runs locally in your browser</div><div class="local">v5.0</div></div>
   </header>
 
   <div class="grid">
@@ -141,6 +141,16 @@
       </div>
 
       <div class="section">
+        <div class="label">4. Project</div>
+        <div class="row">
+          <button id="saveProjectBtn" class="secondary full" type="button" disabled style="margin:0">SAVE PROJECT</button>
+          <button id="loadProjectBtn" class="secondary full" type="button" style="margin:0">LOAD PROJECT</button>
+        </div>
+        <input id="projectInput" type="file" accept=".printworks,.json,application/json" />
+        <div style="font-size:11px;color:var(--muted);margin-top:8px">Saves the source PDF and all Grid Maker settings in one self-contained PrintWorks project file.</div>
+      </div>
+
+      <div class="section">
         <button id="makeBtn" class="primary full" disabled>DOWNLOAD PDF</button>
         <div id="status" class="status"></div>
       </div>
@@ -176,6 +186,7 @@
     sourceWidthMm=el('sourceWidthMm'),sourceHeightMm=el('sourceHeightMm'),lockAspect=el('lockAspect'),resetSourceSize=el('resetSourceSize'),
     layoutInfo=el('layoutInfo'),
     quantitySection=el('quantitySection'),qtyList=el('qtyList'),setAllQty=el('setAllQty'),applyAllBtn=el('applyAllBtn'),resetQtyBtn=el('resetQtyBtn'),uniformDims=el('uniformDims'),
+    saveProjectBtn=el('saveProjectBtn'),loadProjectBtn=el('loadProjectBtn'),projectInput=el('projectInput'),
     status=el('status'),pdfWrap=el('pdfWrap'),pdfPreview=el('pdfPreview'),
     viewerMeta=el('viewerMeta'),uploadProgress=el('uploadProgress'),
     uploadProgressBar=el('uploadProgressBar'),uploadProgressText=el('uploadProgressText'),
@@ -431,6 +442,102 @@
     makeBtn.disabled=mixedSizes||!l.perSheet||(sides.value==='double'&&p%2!==0)||expandedDesigns().length===0;
   }
 
+  function bytesToBase64(bytes){
+    let binary='';
+    const chunk=0x8000;
+    for(let i=0;i<bytes.length;i+=chunk)binary+=String.fromCharCode(...bytes.subarray(i,Math.min(i+chunk,bytes.length)));
+    return btoa(binary);
+  }
+  function base64ToBytes(base64){
+    const binary=atob(base64);
+    const bytes=new Uint8Array(binary.length);
+    for(let i=0;i<binary.length;i++)bytes[i]=binary.charCodeAt(i);
+    return bytes;
+  }
+  function projectSettings(){
+    return {
+      paper:paper.value,orientation:orientation.value,customWidth:customWidth.value,customHeight:customHeight.value,
+      sides:sides.value,pageFilter:pageFilter.value,printerSpreads:printerSpreads.checked,cropMarks:cropMarks.checked,
+      cutLines:cutLines.checked,showRefs:showRefs.checked,centerGrid:centerGrid.checked,uniformDims:uniformDims.checked,
+      sourceWidthMm:sourceWidthMm.value,sourceHeightMm:sourceHeightMm.value,lockAspect:lockAspect.checked,
+      singleQuantities:[...singleQuantities],doubleQuantities:[...doubleQuantities],
+      assetSizes:assetSizes.map(x=>({wMm:round1(mm(x.w)),hMm:round1(mm(x.h))}))
+    };
+  }
+  function saveProject(){
+    if(!sourceBytes)return;
+    showGridLoading();
+    try{
+      const project={
+        format:'Gunpowder PrintWorks Project',
+        version:1,
+        tool:'pdf-grid-maker',
+        created:new Date().toISOString(),
+        sourceName:(sourceName||'source')+'.pdf',
+        sourcePdfBase64:bytesToBase64(sourceBytes),
+        settings:projectSettings()
+      };
+      const blob=new Blob([JSON.stringify(project)],{type:'application/json'});
+      const url=URL.createObjectURL(blob);
+      const a=document.createElement('a');
+      a.href=url;a.download=(sourceName||'grid-layout')+'.printworks';
+      document.body.appendChild(a);a.click();a.remove();
+      setTimeout(()=>URL.revokeObjectURL(url),1000);
+      setStatus('Project saved.');
+    }finally{hideGridLoading()}
+  }
+  async function loadProjectFile(file){
+    if(!file)return;
+    showGridLoading();
+    try{
+      const project=JSON.parse(await file.text());
+      if(project.tool!=='pdf-grid-maker'||!project.sourcePdfBase64)throw new Error('This is not a PDF Grid Maker PrintWorks project.');
+      sourceBytes=base64ToBytes(project.sourcePdfBase64);
+      sourceDoc=await PDFDocument.load(sourceBytes.slice(),{ignoreEncryption:false});
+      const pages=sourceDoc.getPages();
+      if(!pages.length)throw new Error('The project PDF has no pages.');
+      sourceName=(project.sourceName||'source.pdf').replace(/\.pdf$/i,'');
+      const first=pages[0].getSize();
+      sourceNaturalW=first.width;sourceNaturalH=first.height;
+      const st=project.settings||{};
+      sourceWidthMm.value=st.sourceWidthMm||round1(mm(first.width));
+      sourceHeightMm.value=st.sourceHeightMm||round1(mm(first.height));
+      sourcePageW=Math.max(1,parseFloat(sourceWidthMm.value))*MM_TO_PT;
+      sourcePageH=Math.max(1,parseFloat(sourceHeightMm.value))*MM_TO_PT;
+      lockAspect.checked=st.lockAspect!==false;
+      paper.value=st.paper||'A3';orientation.value=st.orientation||'portrait';
+      customWidth.value=st.customWidth||210;customHeight.value=st.customHeight||297;
+      sides.value=st.sides||'double';pageFilter.value=st.pageFilter||'all';
+      printerSpreads.checked=!!st.printerSpreads;cropMarks.checked=!!st.cropMarks;cutLines.checked=!!st.cutLines;
+      showRefs.checked=st.showRefs!==false;centerGrid.checked=st.centerGrid!==false;uniformDims.checked=st.uniformDims!==false;
+      singleQuantities=Array.isArray(st.singleQuantities)?st.singleQuantities.slice(0,pages.length):Array(pages.length).fill(1);
+      while(singleQuantities.length<pages.length)singleQuantities.push(1);
+      const pairCount=Math.floor(pages.length/2);
+      doubleQuantities=Array.isArray(st.doubleQuantities)?st.doubleQuantities.slice(0,pairCount):Array(pairCount).fill(1);
+      while(doubleQuantities.length<pairCount)doubleQuantities.push(1);
+      const assetCount=Math.ceil(pages.length/2);
+      assetSizes=Array.from({length:assetCount},(_,i)=>{
+        const a=st.assetSizes&&st.assetSizes[i];
+        return a?{w:Math.max(1,Number(a.wMm))*MM_TO_PT,h:Math.max(1,Number(a.hMm))*MM_TO_PT}:{w:sourcePageW,h:sourcePageH};
+      });
+      mixedSizes=false;
+      for(let i=1;i<pages.length;i++){const ps=pages[i].getSize();if(Math.abs(ps.width-first.width)>.5||Math.abs(ps.height-first.height)>.5){mixedSizes=true;break}}
+      sourceSizeControls.hidden=false;sourceInfo.hidden=false;quantitySection.hidden=false;
+      el('dropTitle').textContent=project.sourceName||'PrintWorks project';
+      el('dropSub').textContent='Project loaded · click to choose a different PDF';
+      sourceInfo.innerHTML='<b>'+pages.length+' PDF page'+(pages.length===1?'':'s')+'</b><br>Original PDF size: <b>'+round1(mm(sourceNaturalW))+' × '+round1(mm(sourceNaturalH))+' mm</b>';
+      saveProjectBtn.disabled=false;
+      renderQuantityList();updateUI(false);
+      if(outputUrl){URL.revokeObjectURL(outputUrl);outputUrl=null}
+      pdfPreview.removeAttribute('src');
+      viewerMeta.textContent='Building imposed preview…';
+      if(!makeBtn.disabled)await buildPrintPdf(false);
+      setStatus('PrintWorks project loaded.');
+    }catch(err){
+      console.error(err);setStatus(err.message||'Could not load project.',true);
+    }finally{hideGridLoading();projectInput.value=''}
+  }
+
   async function loadFile(file){
     if(!file)return;
     showGridLoading();
@@ -464,6 +571,7 @@
       pdfPreview.removeAttribute('src');
       viewerMeta.textContent='Building imposed preview…';
       setStatus('PDF ready.');
+      saveProjectBtn.disabled=false;
       renderQuantityList();
       updateUI(false);
       if(!makeBtn.disabled) await buildPrintPdf(false);
@@ -689,6 +797,9 @@
 
   pdfInput.addEventListener('change',e=>loadFile(e.target.files[0]));
   makeBtn.addEventListener('click',()=>buildPrintPdf(true));
+  saveProjectBtn.addEventListener('click',saveProject);
+  loadProjectBtn.addEventListener('click',()=>projectInput.click());
+  projectInput.addEventListener('change',e=>loadProjectFile(e.target.files[0]));
   let rebuildTimer=null;
   function scheduleRebuild(){
     updateUI(false);
