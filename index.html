@@ -29,10 +29,15 @@
         <span>Print check and typography</span>
       </div>
     </div>
-    <div class="version">v1.9</div>
+    <div class="version">v2.0</div>
   </header>
 
-  <main>
+  <nav class="pw-tool-tabs" aria-label="PrintWorks tools">
+    <button class="pw-tool-tab active" type="button" data-tool-tab="printworks">Print Check &amp; Typography</button>
+    <button class="pw-tool-tab" type="button" data-tool-tab="gridmaker">PDF Grid Maker</button>
+  </nav>
+
+  <main id="printworksTool" class="pw-tab-panel">
     <section class="hero">
       <p class="eyebrow">PDF PREFLIGHT AND TYPOGRAPHY CHECKER</p>
       <h1>Check it before<br>the printer does.</h1>
@@ -273,7 +278,7 @@
 
     <section class="how">
       <div>
-        <p class="eyebrow">VERSION 1.9</p>
+        <p class="eyebrow">VERSION 2.0</p>
         <h2>What it does</h2>
       </div>
       <div class="how-grid">
@@ -285,6 +290,24 @@
     <div id="lightbox" class="lightbox hidden" aria-hidden="true"><button id="lightboxClose" aria-label="Close preview">×</button><div class="lightbox-inner"><div class="lb-stage"><canvas id="lightboxCanvas"></canvas><div id="lightboxOverlay" class="lb-overlay"></div></div><div id="lightboxCaption"></div><div id="lightboxLegend" class="lb-legend"></div></div></div>
 </main>
 
-  <footer>Printworks © Gunpowder Studios 2026 · v1.9 · <a href="https://www.gunpowderstudios.co.uk/apps/">More apps from Gunpowder Studios</a></footer>
+  <main id="gridmakerTool" class="pw-tab-panel pw-grid-shell" hidden>
+    <iframe class="pw-grid-frame" src="grid-maker.html" title="PrintWorks PDF Grid Maker"></iframe>
+  </main>
+
+  <footer>Printworks © Gunpowder Studios 2026 · v2.0 · <a href="https://www.gunpowderstudios.co.uk/apps/">More apps from Gunpowder Studios</a></footer>
+<script>
+  (() => {
+    const tabs = document.querySelectorAll('.pw-tool-tab');
+    const printworks = document.getElementById('printworksTool');
+    const gridmaker = document.getElementById('gridmakerTool');
+    tabs.forEach(btn => btn.addEventListener('click', () => {
+      const showGrid = btn.dataset.toolTab === 'gridmaker';
+      tabs.forEach(t => t.classList.toggle('active', t === btn));
+      printworks.hidden = showGrid;
+      gridmaker.hidden = !showGrid;
+      window.scrollTo({top: 0, behavior: 'smooth'});
+    }));
+  })();
+  </script>
 </body>
 </html>
