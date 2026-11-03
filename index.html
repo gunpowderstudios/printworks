@@ -21,6 +21,9 @@
   <script src="app.js" defer></script>
 </head>
 <body>
+  <div id="pwLoadingOverlay" class="pw-loading-overlay active" aria-live="polite" aria-busy="true">
+    <div class="pw-loading-text">Loading<span id="pwLoadingDots">.</span></div>
+  </div>
   <header class="topbar">
     <div class="brand">
       <div class="mark">P</div>
@@ -29,7 +32,7 @@
         <span>Print check and typography</span>
       </div>
     </div>
-    <div class="version">v2.0</div>
+    <div class="version">v2.1</div>
   </header>
 
   <nav class="pw-tool-tabs" aria-label="PrintWorks tools">
@@ -278,7 +281,7 @@
 
     <section class="how">
       <div>
-        <p class="eyebrow">VERSION 2.0</p>
+        <p class="eyebrow">VERSION 2.1</p>
         <h2>What it does</h2>
       </div>
       <div class="how-grid">
@@ -294,7 +297,38 @@
     <iframe class="pw-grid-frame" src="grid-maker.html" title="PrintWorks PDF Grid Maker"></iframe>
   </main>
 
-  <footer>Printworks © Gunpowder Studios 2026 · v2.0 · <a href="https://www.gunpowderstudios.co.uk/apps/">More apps from Gunpowder Studios</a></footer>
+  <footer>Printworks © Gunpowder Studios 2026 · v2.1 · <a href="https://www.gunpowderstudios.co.uk/apps/">More apps from Gunpowder Studios</a></footer>
+<script>
+  (() => {
+    const overlay=document.getElementById('pwLoadingOverlay');
+    const dots=document.getElementById('pwLoadingDots');
+    let dotStep=0, timer=null, hideTimer=null;
+    const startDots=()=>{
+      if(timer)return;
+      timer=setInterval(()=>{dotStep=(dotStep%3)+1;dots.textContent='.'.repeat(dotStep);},360);
+    };
+    const stopDots=()=>{if(timer){clearInterval(timer);timer=null;}};
+    window.PWLoading={
+      show(){
+        if(hideTimer){clearTimeout(hideTimer);hideTimer=null;}
+        overlay.classList.add('active');
+        overlay.setAttribute('aria-busy','true');
+        dotStep=0;dots.textContent='.';
+        startDots();
+      },
+      hide(delay=120){
+        if(hideTimer)clearTimeout(hideTimer);
+        hideTimer=setTimeout(()=>{
+          overlay.classList.remove('active');
+          overlay.setAttribute('aria-busy','false');
+          stopDots();
+        },delay);
+      }
+    };
+    window.addEventListener('load',()=>PWLoading.hide(180));
+    startDots();
+  })();
+  </script>
 <script>
   (() => {
     const tabs = document.querySelectorAll('.pw-tool-tab');
@@ -308,7 +342,9 @@
       if (smooth) window.scrollTo({top: 0, behavior: 'smooth'});
     };
     tabs.forEach(btn => btn.addEventListener('click', () => {
+      if(window.PWLoading)PWLoading.show();
       activateTool(btn.dataset.toolTab);
+      setTimeout(()=>{if(window.PWLoading)PWLoading.hide()},260);
       const url = new URL(window.location.href);
       if (btn.dataset.toolTab === 'gridmaker') url.searchParams.set('tool','gridmaker');
       else url.searchParams.delete('tool');
