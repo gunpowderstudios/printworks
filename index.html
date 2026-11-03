@@ -300,13 +300,21 @@
     const tabs = document.querySelectorAll('.pw-tool-tab');
     const printworks = document.getElementById('printworksTool');
     const gridmaker = document.getElementById('gridmakerTool');
-    tabs.forEach(btn => btn.addEventListener('click', () => {
-      const showGrid = btn.dataset.toolTab === 'gridmaker';
-      tabs.forEach(t => t.classList.toggle('active', t === btn));
+    const activateTool = (tool, smooth = true) => {
+      const showGrid = tool === 'gridmaker';
+      tabs.forEach(t => t.classList.toggle('active', t.dataset.toolTab === (showGrid ? 'gridmaker' : 'printworks')));
       printworks.hidden = showGrid;
       gridmaker.hidden = !showGrid;
-      window.scrollTo({top: 0, behavior: 'smooth'});
+      if (smooth) window.scrollTo({top: 0, behavior: 'smooth'});
+    };
+    tabs.forEach(btn => btn.addEventListener('click', () => {
+      activateTool(btn.dataset.toolTab);
+      const url = new URL(window.location.href);
+      if (btn.dataset.toolTab === 'gridmaker') url.searchParams.set('tool','gridmaker');
+      else url.searchParams.delete('tool');
+      history.replaceState(null,'',url);
     }));
+    if (new URLSearchParams(window.location.search).get('tool') === 'gridmaker') activateTool('gridmaker', false);
   })();
   </script>
 </body>
