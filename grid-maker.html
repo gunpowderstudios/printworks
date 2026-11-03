@@ -1,0 +1,727 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>PrintWorks — PDF Grid Maker</title>
+  <meta name="description" content="Impose item and token PDFs onto A4 or A3 sheets at 100% for single- or double-sided printing." />
+  <style>
+    :root{
+      --bg:#f3f1ea;--panel:#fff;--ink:#172019;--muted:#667067;--green:#174b39;--green2:#0f382a;
+      --line:#d9ddd8;--soft:#edf3ef;--danger:#9e2f2f;--shadow:0 14px 40px rgba(18,41,30,.10);--radius:18px;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:var(--ink);background:var(--bg)}
+    .wrap{max-width:1400px;margin:0 auto;padding:18px 18px 18px}
+    header{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;margin-bottom:22px}
+    h1{font-size:15px;line-height:1.2;margin:0;letter-spacing:0;font-weight:800}
+    .tag{margin-top:9px;color:var(--muted);font-size:15px}
+    .local{background:var(--soft);border:1px solid #ccdacf;color:var(--green2);padding:9px 12px;border-radius:999px;font-size:13px;font-weight:750;white-space:nowrap}
+    .grid{display:grid;grid-template-columns:520px 1fr;gap:22px;align-items:start;min-height:calc(100vh - 120px)}
+    .panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden}
+    .controls{padding:22px;max-height:calc(100vh - 120px);overflow-y:auto;scrollbar-gutter:stable}
+    .section{padding:18px 0;border-bottom:1px solid var(--line)}
+    .section:first-child{padding-top:0}.section:last-child{border-bottom:0;padding-bottom:0}
+    .label{font-size:12px;font-weight:850;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:10px}
+    .drop{display:block;border:2px dashed #aeb9b1;border-radius:14px;padding:28px 18px;text-align:center;background:#fafbf9;cursor:pointer;transition:.18s ease;overflow:hidden}
+    .drop.drag{border-color:var(--green);background:var(--soft)} .drop strong{display:block;font-size:16px}
+    .drop span{display:block;color:var(--muted);font-size:13px;margin-top:5px}
+    .progress{margin-top:12px;height:10px;border-radius:999px;background:#e5e9e6;overflow:hidden;display:none}
+    .progress.show{display:block}
+    .progressBar{height:100%;width:0%;background:var(--green);transition:width .18s ease}
+    .progressText{margin-top:7px;font-size:12px;color:var(--muted);display:none}
+    .progressText.show{display:block}
+    input[type=file]{display:none}
+    select,input[type=number]{width:100%;appearance:none;border:1px solid #cbd1cc;border-radius:11px;background:#fff;padding:11px 12px;font:inherit;color:var(--ink);outline:none}
+    select:focus,input[type=number]:focus{border-color:var(--green);box-shadow:0 0 0 3px rgba(23,75,57,.1)}
+    .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}.field label{display:block;font-size:13px;font-weight:750;margin:0 0 6px}
+    .check{display:flex;gap:10px;align-items:center;margin-top:10px;font-size:13px;color:var(--muted)}
+    .check input{width:18px;height:18px;accent-color:var(--green)}
+    button{border:0;border-radius:12px;padding:12px 15px;font:inherit;font-weight:850;cursor:pointer;transition:.18s ease}
+    .full{width:100%}.primary{background:var(--green);color:#fff}.primary:hover{background:var(--green2);transform:translateY(-1px)}
+    button:disabled{opacity:.45;cursor:not-allowed;transform:none}.secondary{background:#eef1ee;color:var(--ink);margin-top:8px}
+    .summary{margin-top:12px;background:#f7f8f6;border:1px solid var(--line);border-radius:12px;padding:12px;font-size:13px;line-height:1.55;color:#455048}
+    .summary b{color:var(--ink)}.warning{color:var(--danger);font-weight:700;margin-top:8px}
+    .qtyTools{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
+    .qtyList{max-height:52vh;min-height:260px;overflow-y:auto;overflow-x:hidden;border:1px solid var(--line);border-radius:12px;background:#fafbf9;scrollbar-gutter:stable}
+    .qtyRow{display:grid;grid-template-columns:minmax(120px,1fr) 58px 58px 58px 82px 34px;gap:7px;align-items:center;padding:9px 10px;border-bottom:1px solid var(--line)}
+    .qtyRow:last-child{border-bottom:0}
+    .qtyName{font-size:13px;line-height:1.25}
+    .qtyName b{display:block;color:var(--ink)}
+    .qtyName span{color:var(--muted);font-size:11px}
+    .qtyRow input{padding:8px 6px;text-align:center}.assetDim{font-size:11px}.assetDimHead{font-size:10px;color:var(--muted);text-align:center;line-height:1.05}
+    .miniBtn{padding:8px 9px;border-radius:9px;background:#edf0ed;color:var(--ink);font-size:11px}
+    .removeBtn{width:34px;height:34px;padding:0;border-radius:50%;background:#f1e8e8;color:#8a2f2f;font-size:18px;line-height:1}
+    .qtyRow.removed{opacity:.48}
+    .qtyRow.removed .qtyName b{text-decoration:line-through}
+    .qtyRow.removed .removeBtn{background:#e7f0ea;color:var(--green2);font-size:14px}
+    .hidden{display:none!important}
+    .viewer{height:calc(100vh - 120px);min-height:700px;display:flex;flex-direction:column;position:sticky;top:12px}
+    .viewerHead{padding:13px 16px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:12px}
+    .viewerHead strong{font-size:14px}.viewerHead span{font-size:12px;color:var(--muted)}.viewerHead .noteBadge{color:#fff!important}
+    .noteBadge{display:inline-grid;place-items:center;width:20px;height:20px;border-radius:50%;background:#ED028C;color:#fff;font-size:10px;font-weight:850;margin-right:6px;vertical-align:middle}
+    .pdfWrap{position:relative}
+    .pdfWrap{flex:1;min-height:0;background:#c7c9c7;overflow:hidden}
+    .pdfWrap iframe{display:block;width:100%;height:100%;border:0;background:#fff}
+    .empty{flex:1;min-height:650px;display:grid;place-items:center;text-align:center;color:var(--muted);padding:30px}
+    .empty b{display:block;color:var(--ink);font-size:20px;margin-bottom:7px}
+    .status{margin-top:12px;font-size:13px;min-height:20px;color:var(--muted)}.status.error{color:var(--danger);font-weight:700}
+    footer{margin-top:20px;color:var(--muted);font-size:12px;text-align:center}
+    @media(max-width:850px){header{align-items:flex-start;flex-direction:column}.grid{grid-template-columns:1fr;min-height:0}.viewer{position:static;height:80vh;min-height:620px}.pdfWrap{min-height:0}.pdfWrap iframe{height:100%}}
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div><h1>Gunpowder PDF Grid Maker</h1><div class="tag">Turn single-page PDFs into cards or tokens on a grid - now that's magic!</div></div>
+    <div style="display:flex;gap:8px;align-items:center"><div class="local">Runs locally in your browser</div><div class="local">v4.8</div></div>
+  </header>
+
+  <div class="grid">
+    <section class="panel controls">
+      <div class="section">
+        <div class="label">1. Source PDF</div>
+        <label class="drop" id="dropZone" for="pdfInput">
+          <strong id="dropTitle">Drop a PDF here</strong>
+          <span id="dropSub">or click to choose a file</span>
+        </label>
+        <input id="pdfInput" type="file" accept="application/pdf,.pdf" />
+        <div id="uploadProgress" class="progress"><div id="uploadProgressBar" class="progressBar"></div></div>
+        <div id="uploadProgressText" class="progressText"></div>
+        <div id="sourceInfo" class="summary" hidden></div>
+        <div id="sourceSizeControls" class="summary" hidden>
+          <b>Imported PDF size</b>
+          <div class="row" style="margin-top:10px">
+            <div class="field"><label for="sourceWidthMm">Width (mm)</label><input id="sourceWidthMm" type="number" min="1" step="0.1" /></div>
+            <div class="field"><label for="sourceHeightMm">Height (mm)</label><input id="sourceHeightMm" type="number" min="1" step="0.1" /></div>
+          </div>
+          <label class="check"><input id="lockAspect" type="checkbox" checked /> Lock proportions</label>
+          <button id="resetSourceSize" class="secondary full" type="button" style="margin-top:10px">RESET TO PDF SIZE</button>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="label">2. Sheet setup</div>
+        <div class="row">
+          <div class="field"><label for="paper">Paper</label><select id="paper"><option value="A4">A4</option><option value="A3" selected>A3</option><option value="custom">Custom</option></select></div>
+          <div class="field"><label for="orientation">Orientation</label><select id="orientation"><option value="portrait">Portrait</option><option value="landscape">Landscape</option></select></div>
+        </div>
+        <div class="row" id="customSizeRow" style="margin-top:10px;display:none">
+          <div class="field"><label for="customWidth">Width (mm)</label><input id="customWidth" type="number" min="1" step="0.1" value="210" /></div>
+          <div class="field"><label for="customHeight">Height (mm)</label><input id="customHeight" type="number" min="1" step="0.1" value="297" /></div>
+        </div>
+        <div class="row" style="margin-top:10px">
+          <div class="field"><label for="sides">Printing</label><select id="sides"><option value="single">Single-sided</option><option value="double" selected>Double-sided</option></select></div>
+          <div class="field" id="pageFilterField"><label for="pageFilter">Pages</label><select id="pageFilter"><option value="all">All pages</option><option value="odd">Odd (Fronts)</option><option value="even">Even (Backs)</option></select></div>
+        </div>
+        <label class="check"><input id="printerSpreads" type="checkbox" /> Printer spreads (booklet order)</label>
+        <label class="check"><input id="cropMarks" type="checkbox" /> Add crop marks</label>
+        <label class="check"><input id="cutLines" type="checkbox" /> Fine grey cut lines</label>
+        <label class="check"><input id="showRefs" type="checkbox" checked /> <span class="noteBadge">1</span>Show pink page reference numbers</label>
+        <label class="check"><input id="centerGrid" type="checkbox" checked /> Centre grid horizontally</label>
+        <div id="layoutInfo" class="summary">Upload a PDF to calculate the 100% layout.</div>
+      </div>
+
+      <div class="section" id="quantitySection" hidden>
+        <div class="label">3. Quantities</div><div style="font-size:12px;color:var(--muted);margin:-2px 0 10px">Pages are paired automatically: page 1 = Asset 1 Front, page 2 = Asset 1 Back, page 3 = Asset 2 Front, page 4 = Asset 2 Back, and so on.</div>
+        <div class="qtyTools">
+          <div class="field"><label for="setAllQty">Set all to</label><input id="setAllQty" type="number" min="0" step="1" value="1" /></div>
+          <div class="field" style="display:flex;align-items:flex-end"><button id="applyAllBtn" class="secondary full" style="margin:0">APPLY TO ALL</button></div>
+        </div>
+        <button id="resetQtyBtn" class="secondary full" type="button" style="margin:0 0 10px">RESET QUANTITIES</button>
+        <label class="check" style="margin:0 0 10px"><input id="uniformDims" type="checkbox" checked /> Uniform asset dimensions</label>
+        <div id="qtyList" class="qtyList"></div>
+      </div>
+
+      <div class="section">
+        <button id="makeBtn" class="primary full" disabled>DOWNLOAD PDF</button>
+        <div id="status" class="status"></div>
+      </div>
+    </section>
+
+    <section class="panel viewer">
+      <div class="viewerHead">
+        <strong>Print PDF preview</strong>
+        <span id="viewerMeta"><span class="noteBadge">1</span>pink numbers will not print</span>
+      </div>
+      <div id="pdfWrap" class="pdfWrap"><iframe id="pdfPreview" title="Generated print PDF preview"></iframe></div>
+    </section>
+  </div>
+  <footer>Gunpowder PDF Grid Maker · Your PDF is processed on your device and is not uploaded.</footer>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
+<script>
+  const { PDFDocument, rgb } = PDFLib;
+  pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
+  const MM_TO_PT = 72 / 25.4;
+  const PAPER_MM = {A4:[210,297], A3:[297,420]};
+  const CROP_GAP_PT = 1 * MM_TO_PT;
+  const CROP_LEN_PT = 3 * MM_TO_PT;
+  const CROP_RESERVE_PT = 5 * MM_TO_PT;
+
+  const el = id => document.getElementById(id);
+  const pdfInput=el('pdfInput'),dropZone=el('dropZone'),paper=el('paper'),orientation=el('orientation'),
+    customSizeRow=el('customSizeRow'),customWidth=el('customWidth'),customHeight=el('customHeight'),sides=el('sides'),
+    pageFilter=el('pageFilter'),pageFilterField=el('pageFilterField'),printerSpreads=el('printerSpreads'),cropMarks=el('cropMarks'),cutLines=el('cutLines'),showRefs=el('showRefs'),centerGrid=el('centerGrid'),
+    makeBtn=el('makeBtn'),sourceInfo=el('sourceInfo'),sourceSizeControls=el('sourceSizeControls'),
+    sourceWidthMm=el('sourceWidthMm'),sourceHeightMm=el('sourceHeightMm'),lockAspect=el('lockAspect'),resetSourceSize=el('resetSourceSize'),
+    layoutInfo=el('layoutInfo'),
+    quantitySection=el('quantitySection'),qtyList=el('qtyList'),setAllQty=el('setAllQty'),applyAllBtn=el('applyAllBtn'),resetQtyBtn=el('resetQtyBtn'),uniformDims=el('uniformDims'),
+    status=el('status'),pdfWrap=el('pdfWrap'),pdfPreview=el('pdfPreview'),
+    viewerMeta=el('viewerMeta'),uploadProgress=el('uploadProgress'),
+    uploadProgressBar=el('uploadProgressBar'),uploadProgressText=el('uploadProgressText');
+
+  let sourceBytes=null,sourceName='',sourceDoc=null,sourcePageW=0,sourcePageH=0,sourceNaturalW=0,sourceNaturalH=0,outputUrl=null;
+  let mixedSizes=false;
+  let singleQuantities=[];
+  let doubleQuantities=[];
+  let assetSizes=[];
+  let buildSequence=0;
+
+  const mm = pt => pt / MM_TO_PT;
+  const round1 = n => Math.round(n*10)/10;
+  const setStatus=(m,e=false)=>{status.textContent=m;status.className='status'+(e?' error':'')};
+  function setProgress(percent,text,show=true){
+    const p=Math.max(0,Math.min(100,percent));
+    uploadProgressBar.style.width=p+'%';
+    uploadProgress.classList.toggle('show',show);
+    uploadProgressText.classList.toggle('show',show);
+    uploadProgressText.textContent=text||'';
+  }
+
+  function syncSourceSize(changed){
+    if(!sourceDoc)return;
+    let w=Math.max(1,parseFloat(sourceWidthMm.value||'1'));
+    let h=Math.max(1,parseFloat(sourceHeightMm.value||'1'));
+    const ratio=sourceNaturalW/sourceNaturalH;
+    if(lockAspect.checked){
+      if(changed==='w'){
+        h=w/ratio;
+        sourceHeightMm.value=round1(h);
+      }else if(changed==='h'){
+        w=h*ratio;
+        sourceWidthMm.value=round1(w);
+      }
+    }
+    sourcePageW=w*MM_TO_PT;
+    sourcePageH=h*MM_TO_PT;
+    assetSizes=assetSizes.map(()=>({w:sourcePageW,h:sourcePageH}));
+  }
+
+  function resetImportedSize(){
+    if(!sourceDoc)return;
+    sourcePageW=sourceNaturalW;
+    sourcePageH=sourceNaturalH;
+    sourceWidthMm.value=round1(mm(sourceNaturalW));
+    sourceHeightMm.value=round1(mm(sourceNaturalH));
+    assetSizes=assetSizes.map(()=>({w:sourcePageW,h:sourcePageH}));
+    renderQuantityList();
+    scheduleRebuild();
+  }
+
+  function sheetPoints(){
+    let w,h;
+    if(paper.value==='custom'){
+      w=Math.max(1,parseFloat(customWidth.value||'1'));
+      h=Math.max(1,parseFloat(customHeight.value||'1'));
+    }else{
+      [w,h]=PAPER_MM[paper.value];
+    }
+    if(orientation.value==='landscape')[w,h]=[h,w];
+    return [w*MM_TO_PT,h*MM_TO_PT];
+  }
+
+  function assetSizeForDesign(design){
+    const pairIndex=sides.value==='double'?design:Math.floor(design/2);
+    return assetSizes[pairIndex]||{w:sourcePageW,h:sourcePageH};
+  }
+
+  function activeAssetCellSize(){
+    if(!sourceDoc)return {w:sourcePageW,h:sourcePageH};
+    const designs=expandedDesigns();
+    if(!designs.length)return {w:sourcePageW,h:sourcePageH};
+    let w=0,h=0;
+    for(const d of designs){
+      const sz=assetSizeForDesign(d);
+      w=Math.max(w,sz.w); h=Math.max(h,sz.h);
+    }
+    return {w:w||sourcePageW,h:h||sourcePageH};
+  }
+
+  function getLayout(){
+    if(!sourceDoc)return null;
+    const [sheetW,sheetH]=sheetPoints();
+    const reserve=cropMarks.checked?CROP_RESERVE_PT:0;
+    const usableW=sheetW-reserve*2, usableH=sheetH-reserve*2;
+    const eps=.25;
+    const cell=activeAssetCellSize();
+    const cellW=cell.w,cellH=cell.h;
+    const cols=Math.floor((usableW+eps)/cellW);
+    const rows=Math.floor((usableH+eps)/cellH);
+    if(cols<1||rows<1)return {sheetW,sheetH,cols:0,rows:0,perSheet:0,gridW:0,gridH:0,startX:0,startY:0,cellW,cellH};
+    const gridW=cols*cellW,gridH=rows*cellH;
+    const startX=centerGrid.checked?(sheetW-gridW)/2:reserve;
+    const startY=(sheetH-gridH)/2;
+    return {sheetW,sheetH,cols,rows,perSheet:cols*rows,gridW,gridH,startX,startY,cellW,cellH};
+  }
+
+  function designCount(){
+    if(!sourceDoc)return 0;
+    const p=sourceDoc.getPageCount();
+    return sides.value==='double'?Math.floor(p/2):p;
+  }
+
+  function pageAllowed(pageIndex){
+    if(sides.value!=='single')return true;
+    const pageNo=pageIndex+1;
+    if(pageFilter.value==='odd')return pageNo%2===1;
+    if(pageFilter.value==='even')return pageNo%2===0;
+    return true;
+  }
+
+  function expandedDesigns(){
+    const arr=[];
+    if(!sourceDoc)return arr;
+    if(sides.value==='double'){
+      for(let d=0;d<doubleQuantities.length;d++){
+        const qty=Math.max(0,parseInt(doubleQuantities[d]||0,10));
+        for(let q=0;q<qty;q++)arr.push(d);
+      }
+    }else{
+      for(let p=0;p<singleQuantities.length;p++){
+        if(!pageAllowed(p))continue;
+        const qty=Math.max(0,parseInt(singleQuantities[p]||0,10));
+        for(let q=0;q<qty;q++)arr.push(p);
+      }
+    }
+    return arr;
+  }
+
+  function renderQuantityList(){
+    if(!sourceDoc)return;
+    quantitySection.hidden=false;
+    pageFilterField.classList.toggle('hidden',sides.value!=='single');
+    const l=getLayout();
+    const fillQty=l&&l.perSheet?l.perSheet:1;
+    const rows=[];
+    if(sides.value==='double'){
+      for(let d=0;d<doubleQuantities.length;d++){
+        rows.push('<div class="qtyRow" data-kind="double" data-index="'+d+'">'+
+          '<div class="qtyName"><b>Asset '+(d+1)+' Front + Back</b><span>PDF pages '+(d*2+1)+' + '+(d*2+2)+'</span></div>'+
+          '<div><div class="assetDimHead">W mm</div><input class="assetDim assetW" type="number" min="1" step="0.1" value="'+round1(mm((assetSizes[d]||{w:sourcePageW}).w))+'"></div>'+
+          '<div><div class="assetDimHead">H mm</div><input class="assetDim assetH" type="number" min="1" step="0.1" value="'+round1(mm((assetSizes[d]||{h:sourcePageH}).h))+'"></div>'+
+          '<input class="qtyInput" type="number" min="0" step="1" value="'+doubleQuantities[d]+'">'+
+          '<button class="miniBtn fillBtn" type="button">FILL SHEET</button>'+
+          '<button class="removeBtn" type="button" title="'+(doubleQuantities[d]>0?'Remove from grid':'Restore')+'">'+(doubleQuantities[d]>0?'×':'↺')+'</button></div>');
+      }
+    }else{
+      for(let p=0;p<singleQuantities.length;p++){
+        if(!pageAllowed(p))continue;
+        rows.push('<div class="qtyRow" data-kind="single" data-index="'+p+'">'+
+          '<div class="qtyName"><b>Asset '+(Math.floor(p/2)+1)+' '+(p%2===0?'Front':'Back')+'</b><span>PDF page '+(p+1)+'</span></div>'+
+          '<div><div class="assetDimHead">W mm</div><input class="assetDim assetW" type="number" min="1" step="0.1" value="'+round1(mm((assetSizes[Math.floor(p/2)]||{w:sourcePageW}).w))+'"></div>'+
+          '<div><div class="assetDimHead">H mm</div><input class="assetDim assetH" type="number" min="1" step="0.1" value="'+round1(mm((assetSizes[Math.floor(p/2)]||{h:sourcePageH}).h))+'"></div>'+
+          '<input class="qtyInput" type="number" min="0" step="1" value="'+singleQuantities[p]+'">'+
+          '<button class="miniBtn fillBtn" type="button">FILL SHEET</button>'+
+          '<button class="removeBtn" type="button" title="'+(singleQuantities[p]>0?'Remove from grid':'Restore')+'">'+(singleQuantities[p]>0?'×':'↺')+'</button></div>');
+      }
+    }
+    qtyList.innerHTML=rows.join('')||'<div style="padding:12px;color:var(--muted);font-size:13px">No pages selected.</div>';
+
+    qtyList.querySelectorAll('.qtyRow').forEach(row=>{
+      const idx=parseInt(row.dataset.index,10);
+      const kind=row.dataset.kind;
+      const input=row.querySelector('.qtyInput');
+      const wInput=row.querySelector('.assetW'),hInput=row.querySelector('.assetH');
+      const pairIndex=kind==='double'?idx:Math.floor(idx/2);
+      const currentQty=kind==='double'?doubleQuantities[idx]:singleQuantities[idx];
+      if(currentQty===0)row.classList.add('removed');
+      input.addEventListener('input',()=>{
+        const v=Math.max(0,parseInt(input.value||'0',10));
+        if(kind==='double')doubleQuantities[idx]=v; else singleQuantities[idx]=v;
+        scheduleRebuild();
+      });
+      input.addEventListener('change',()=>renderQuantityList());
+      const updateAssetSize=()=>{
+        const w=Math.max(1,parseFloat(wInput.value||'1'))*MM_TO_PT;
+        const h=Math.max(1,parseFloat(hInput.value||'1'))*MM_TO_PT;
+        if(uniformDims.checked){
+          assetSizes=assetSizes.map(()=>({w,h}));
+        }else{
+          assetSizes[pairIndex]={w,h};
+        }
+        scheduleRebuild();
+      };
+      wInput.addEventListener('input',updateAssetSize);
+      hInput.addEventListener('input',updateAssetSize);
+      wInput.addEventListener('change',()=>renderQuantityList());
+      hInput.addEventListener('change',()=>renderQuantityList());
+      row.querySelector('.removeBtn').addEventListener('click',()=>{
+        const current=kind==='double'?doubleQuantities[idx]:singleQuantities[idx];
+        if(kind==='double'){
+          doubleQuantities[idx]=current>0?0:1;
+        }else{
+          singleQuantities[idx]=current>0?0:1;
+        }
+        renderQuantityList();
+        scheduleRebuild();
+      });
+
+      row.querySelector('.fillBtn').addEventListener('click',()=>{
+        if(kind==='double'){
+          doubleQuantities=doubleQuantities.map(()=>0);
+          doubleQuantities[idx]=fillQty;
+        }else{
+          singleQuantities=singleQuantities.map(()=>0);
+          singleQuantities[idx]=fillQty;
+        }
+        renderQuantityList();
+        scheduleRebuild();
+      });
+    });
+  }
+
+  function outputPageCount(){
+    const l=getLayout(); if(!l||!l.perSheet)return 0;
+    const sheets=Math.ceil(expandedDesigns().length/l.perSheet);
+    return sides.value==='double'?sheets*2:sheets;
+  }
+
+  function updateUI(resetPreview=false){
+    customSizeRow.style.display=paper.value==='custom'?'grid':'none';
+    if(!sourceDoc)return;
+    const p=sourceDoc.getPageCount(),l=getLayout();
+    const selectedItems=expandedDesigns().length;
+    const physical=l.perSheet?Math.ceil(selectedItems/l.perSheet):0;
+    const outPages=sides.value==='double'?physical*2:physical;
+    let warning='';
+    if(mixedSizes)warning+='<div class="warning">Mixed source page sizes are not supported yet.</div>';
+    if(sides.value==='double'&&p%2!==0)warning+='<div class="warning">Double-sided mode needs an even number of PDF pages.</div>';
+    if(!l.perSheet)warning+='<div class="warning">The source page is too large for this sheet at 100%.</div>';
+    layoutInfo.innerHTML='Sheet: <b>'+round1(mm(l.sheetW))+' × '+round1(mm(l.sheetH))+' mm</b><br>'+
+      '<b>'+l.cols+' × '+l.rows+'</b> = <b>'+l.perSheet+' per side</b><br>'+
+      'Grid: '+round1(mm(l.gridW||0))+' × '+round1(mm(l.gridH||0))+' mm<br>Largest selected asset: <b>'+round1(mm(l.cellW||0))+' × '+round1(mm(l.cellH||0))+' mm</b><br>'+
+      'Selected items: <b>'+selectedItems+'</b><br>Physical sheets: <b>'+physical+'</b> · Output PDF pages: <b>'+outPages+'</b>'+
+      (cropMarks.checked?'<br>Crop marks: <b>On</b>':'')+
+      (cutLines.checked?'<br>Fine grey cut lines: <b>On</b>':'')+
+      (showRefs.checked?'<br>Pink reference numbers: <b>On</b>':'')+
+      (printerSpreads.checked?'<br>Printer spreads: <b>On</b>':'')+warning;
+    makeBtn.disabled=mixedSizes||!l.perSheet||(sides.value==='double'&&p%2!==0)||expandedDesigns().length===0;
+  }
+
+  async function loadFile(file){
+    if(!file)return;
+    setStatus('Reading PDF…');
+    setProgress(8,'Reading PDF…',true);
+    try{
+      const buf=await file.arrayBuffer();
+      setProgress(30,'Loading PDF pages…',true);
+      sourceBytes=new Uint8Array(buf);
+      sourceDoc=await PDFDocument.load(sourceBytes.slice(),{ignoreEncryption:false});
+      setProgress(50,'Checking page size and layout…',true);
+      sourceName=file.name.replace(/\.pdf$/i,'');
+      const pages=sourceDoc.getPages();
+      if(!pages.length)throw new Error('The PDF has no pages.');
+      const first=pages[0].getSize();
+      sourceNaturalW=first.width;sourceNaturalH=first.height;
+      sourcePageW=first.width;sourcePageH=first.height;
+      sourceWidthMm.value=round1(mm(sourcePageW));
+      sourceHeightMm.value=round1(mm(sourcePageH));
+      sourceSizeControls.hidden=false;
+      singleQuantities=Array(pages.length).fill(1);
+      doubleQuantities=Array(Math.floor(pages.length/2)).fill(1);
+      assetSizes=Array(Math.ceil(pages.length/2)).fill(null).map(()=>({w:sourcePageW,h:sourcePageH}));
+      mixedSizes=false;
+      for(let i=1;i<pages.length;i++){const s=pages[i].getSize();if(Math.abs(s.width-sourcePageW)>.5||Math.abs(s.height-sourcePageH)>.5){mixedSizes=true;break}}
+      el('dropTitle').textContent=file.name;el('dropSub').textContent='Click to choose a different PDF';
+      sourceInfo.hidden=false;
+      sourceInfo.innerHTML='<b>'+pages.length+' PDF page'+(pages.length===1?'':'s')+'</b><br>Original PDF size: <b>'+round1(mm(sourceNaturalW))+' × '+round1(mm(sourceNaturalH))+' mm</b>';
+      setProgress(68,'Building imposed preview…',true);
+      if(outputUrl){URL.revokeObjectURL(outputUrl);outputUrl=null;}
+      pdfPreview.removeAttribute('src');
+      viewerMeta.textContent='Building imposed preview…';
+      setStatus('PDF ready.');
+      renderQuantityList();
+      updateUI(false);
+      if(!makeBtn.disabled) await buildPrintPdf(false);
+      setProgress(100,'Ready',true);
+      setTimeout(()=>setProgress(100,'',false),700);
+    }catch(err){
+      console.error(err);sourceDoc=null;sourceBytes=null;makeBtn.disabled=true;
+      setStatus(err.message||'Could not read that PDF.',true);
+      setProgress(0,'Upload failed',true);
+    }
+  }
+
+  function mirroredSlot(layout,row,col){
+    return {row:row,col:(layout.cols-1)-col};
+  }
+
+  function drawCropMarksPdf(page,l){
+    const black=rgb(0,0,0),thickness=.25;
+    const top=l.sheetH-l.startY, bottom=l.sheetH-(l.startY+l.gridH), left=l.startX, right=l.startX+l.gridW;
+    for(let c=0;c<=l.cols;c++){
+      const x=l.startX+c*l.cellW;
+      page.drawLine({start:{x,y:top+CROP_GAP_PT},end:{x,y:top+CROP_GAP_PT+CROP_LEN_PT},thickness,color:black});
+      page.drawLine({start:{x,y:bottom-CROP_GAP_PT},end:{x,y:bottom-CROP_GAP_PT-CROP_LEN_PT},thickness,color:black});
+    }
+    for(let r=0;r<=l.rows;r++){
+      const y=l.sheetH-(l.startY+r*l.cellH);
+      page.drawLine({start:{x:left-CROP_GAP_PT-CROP_LEN_PT,y},end:{x:left-CROP_GAP_PT,y},thickness,color:black});
+      page.drawLine({start:{x:right+CROP_GAP_PT,y},end:{x:right+CROP_GAP_PT+CROP_LEN_PT,y},thickness,color:black});
+    }
+  }
+
+  function drawCutLinePdf(page,x,y,w,h){
+    const grey=rgb(.65,.65,.65);
+    page.drawRectangle({
+      x:x,y:y,width:w,height:h,
+      borderColor:grey,borderWidth:.35
+    });
+  }
+
+  function slotXY(l,row,col){
+    return {x:l.startX+col*l.cellW,y:l.sheetH-l.startY-(row+1)*l.cellH};
+  }
+
+  async function applyPrinterSpreadOrder(pdfDoc){
+    if(!printerSpreads.checked)return pdfDoc;
+    const originalCount=pdfDoc.getPageCount();
+    let paddedCount=originalCount;
+    while(paddedCount%4!==0)paddedCount++;
+    const spreadDoc=await PDFDocument.create();
+    const [sheetW,sheetH]=sheetPoints();
+
+    // Copy original pages and create blank placeholders as required.
+    const copied=await spreadDoc.copyPages(pdfDoc,Array.from({length:originalCount},(_,i)=>i));
+    const refs=[];
+    for(let i=0;i<paddedCount;i++){
+      if(i<originalCount)refs.push(copied[i]);
+      else refs.push(null);
+    }
+
+    // Booklet printer-spread order: last+first, second+second-last, etc.
+    const order=[];
+    let low=0,high=paddedCount-1;
+    while(low<high){
+      order.push(high,low,low+1,high-1);
+      low+=2; high-=2;
+    }
+
+    for(const idx of order){
+      if(refs[idx]) spreadDoc.addPage(refs[idx]);
+      else spreadDoc.addPage([sheetW,sheetH]);
+    }
+    return spreadDoc;
+  }
+
+  async function buildFlattenedSourceImages(pageCount){
+    const renderDoc=await pdfjsLib.getDocument({data:sourceBytes.slice()}).promise;
+    const images=[];
+    const targetDpi=300;
+    for(let i=1;i<=pageCount;i++){
+      const page=await renderDoc.getPage(i);
+      const base=page.getViewport({scale:1});
+      const targetWidthPx=Math.max(1,Math.round((sourcePageW/72)*targetDpi));
+      const scale=targetWidthPx/base.width;
+      const viewport=page.getViewport({scale});
+      const canvas=document.createElement('canvas');
+      canvas.width=Math.ceil(viewport.width);
+      canvas.height=Math.ceil(viewport.height);
+      const ctx=canvas.getContext('2d',{alpha:true});
+      await page.render({canvasContext:ctx,viewport}).promise;
+      const blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/png'));
+      const bytes=new Uint8Array(await blob.arrayBuffer());
+      images.push(bytes);
+      setProgress(72+Math.round((i/pageCount)*15),'Flattening PDF effects… '+i+'/'+pageCount,true);
+    }
+    return images;
+  }
+
+  async function makePreviewPdf(printBytes, layout, designs, pageCount){
+    const previewDoc=await PDFDocument.load(printBytes.slice());
+    const pages=previewDoc.getPages();
+    const badgeRadius=16;
+    const badgeFontSize=16;
+    const white=rgb(1,1,1);
+    const pink=rgb(237/255,2/255,140/255);
+
+    if(showRefs.checked){
+    for(let outIndex=0;outIndex<pages.length;outIndex++){
+      const page=pages[outIndex];
+      const sheetIndex=sides.value==='double'?Math.floor(outIndex/2):outIndex;
+      const isBack=sides.value==='double'&&(outIndex%2===1);
+
+      for(let pos=0;pos<layout.perSheet;pos++){
+        const idx=sheetIndex*layout.perSheet+pos;
+        if(idx>=designs.length)break;
+        const design=designs[idx];
+        const row=Math.floor(pos/layout.cols);
+        const col=pos%layout.cols;
+
+        let rr=row, cc=col, sourcePageNo;
+        if(sides.value==='double'){
+          if(isBack){
+            const m=mirroredSlot(layout,row,col);
+            rr=m.row; cc=m.col;
+            sourcePageNo=design*2+2;
+          }else{
+            sourcePageNo=design*2+1;
+          }
+        }else{
+          sourcePageNo=design+1;
+        }
+
+        const slot=slotXY(layout,rr,cc);
+        const sz=assetSizeForDesign(design);
+        const xy={x:slot.x+(layout.cellW-sz.w)/2,y:slot.y+(layout.cellH-sz.h)/2};
+        const cx=xy.x+(sz.w/3);
+        const cy=xy.y+(sz.h/3);
+        page.drawCircle({x:cx,y:cy,size:badgeRadius,color:pink});
+        const text=String(sourcePageNo);
+        const tw=text.length*badgeFontSize*.55;
+        page.drawText(text,{x:cx-tw/2,y:cy-badgeFontSize*.35,size:badgeFontSize,color:white});
+      }
+    }
+    }
+    return await previewDoc.save();
+  }
+
+  async function buildPrintPdf(downloadAfter){
+    if(!sourceDoc||!sourceBytes)return;
+    const myBuild=++buildSequence;
+    updateUI();
+    const l=getLayout(),pageCount=sourceDoc.getPageCount();
+    if(!l||!l.perSheet)return;
+    if(sides.value==='double'&&pageCount%2!==0){setStatus('Double-sided mode needs an even number of source pages.',true);return}
+    const wasDisabled=makeBtn.disabled;
+    makeBtn.disabled=true;
+    setStatus(downloadAfter?'Building download PDF…':'Building preview…');
+    setProgress(downloadAfter?72:72,downloadAfter?'Building download PDF…':'Building imposed preview…',true);
+    try{
+      const out=await PDFDocument.create();
+      const flattened=await buildFlattenedSourceImages(pageCount);
+      if(myBuild!==buildSequence)return;
+      const embedded=[];
+      for(let i=0;i<flattened.length;i++)embedded.push(await out.embedPng(flattened[i]));
+      const designs=expandedDesigns(),physicalSheets=Math.ceil(designs.length/l.perSheet);
+      for(let s=0;s<physicalSheets;s++){
+        const front=out.addPage([l.sheetW,l.sheetH]),back=sides.value==='double'?out.addPage([l.sheetW,l.sheetH]):null;
+        for(let pos=0;pos<l.perSheet;pos++){
+          const idx=s*l.perSheet+pos;if(idx>=designs.length)break;
+          const d=designs[idx],row=Math.floor(pos/l.cols),col=pos%l.cols;
+          const sz=assetSizeForDesign(d);
+          const fslot=slotXY(l,row,col);
+          const fxy={x:fslot.x+(l.cellW-sz.w)/2,y:fslot.y+(l.cellH-sz.h)/2};
+          if(sides.value==='single'){
+            front.drawImage(embedded[d],{x:fxy.x,y:fxy.y,width:sz.w,height:sz.h});
+            if(cutLines.checked)drawCutLinePdf(front,fxy.x,fxy.y,sz.w,sz.h);
+          }else{
+            front.drawImage(embedded[d*2],{x:fxy.x,y:fxy.y,width:sz.w,height:sz.h});
+            if(cutLines.checked)drawCutLinePdf(front,fxy.x,fxy.y,sz.w,sz.h);
+            const m=mirroredSlot(l,row,col),bslot=slotXY(l,m.row,m.col),bxy={x:bslot.x+(l.cellW-sz.w)/2,y:bslot.y+(l.cellH-sz.h)/2};
+            back.drawImage(embedded[d*2+1],{x:bxy.x,y:bxy.y,width:sz.w,height:sz.h});
+            if(cutLines.checked)drawCutLinePdf(back,bxy.x,bxy.y,sz.w,sz.h);
+          }
+        }
+        if(cropMarks.checked){drawCropMarksPdf(front,l);if(back)drawCropMarksPdf(back,l)}
+      }
+      const finalDoc=await applyPrinterSpreadOrder(out);
+      const bytes=await finalDoc.save();
+
+      const previewBytes=await makePreviewPdf(bytes,l,designs,pageCount);
+      if(myBuild!==buildSequence)return;
+      if(outputUrl)URL.revokeObjectURL(outputUrl);
+      outputUrl=URL.createObjectURL(new Blob([previewBytes],{type:'application/pdf'}));
+      pdfPreview.src=outputUrl+'#toolbar=1&navpanes=0&view=Fit';
+      viewerMeta.innerHTML=showRefs.checked
+        ? '<span class="noteBadge">1</span>'+finalDoc.getPageCount()+' output pages · pink numbers will not print'
+        : finalDoc.getPageCount()+' output pages';
+      setStatus('Print PDF ready — '+finalDoc.getPageCount()+' pages.');
+      setProgress(100,downloadAfter?'PDF ready to download':'Preview ready',true);
+      setTimeout(()=>setProgress(100,'',false),700);
+
+      if(downloadAfter){
+        const cleanUrl=URL.createObjectURL(new Blob([bytes],{type:'application/pdf'}));
+        const a=document.createElement('a');
+        a.href=cleanUrl;
+        a.download=(sourceName||'cards')+'-print-ready.pdf';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(()=>URL.revokeObjectURL(cleanUrl),1000);
+      }
+    }catch(err){
+      if(myBuild===buildSequence){
+        console.error(err);
+        setStatus(err.message||'Could not create the print PDF.',true);
+      }
+    }
+    finally{
+      if(myBuild===buildSequence)makeBtn.disabled=wasDisabled;
+    }
+  }
+
+  pdfInput.addEventListener('change',e=>loadFile(e.target.files[0]));
+  makeBtn.addEventListener('click',()=>buildPrintPdf(true));
+  let rebuildTimer=null;
+  function scheduleRebuild(){
+    updateUI(false);
+    if(rebuildTimer)clearTimeout(rebuildTimer);
+    rebuildTimer=setTimeout(()=>{if(sourceDoc&&!makeBtn.disabled)buildPrintPdf(false)},180);
+  }
+  [paper,orientation,customWidth,customHeight,printerSpreads,cropMarks,cutLines,showRefs,centerGrid].forEach(c=>{
+    c.addEventListener('change',()=>{renderQuantityList();scheduleRebuild();});
+    c.addEventListener('input',scheduleRebuild);
+  });
+  sides.addEventListener('change',()=>{
+    renderQuantityList();
+    scheduleRebuild();
+  });
+  pageFilter.addEventListener('change',()=>{
+    renderQuantityList();
+    scheduleRebuild();
+  });
+  sourceWidthMm.addEventListener('input',()=>{syncSourceSize('w');renderQuantityList();scheduleRebuild();});
+  sourceHeightMm.addEventListener('input',()=>{syncSourceSize('h');renderQuantityList();scheduleRebuild();});
+  lockAspect.addEventListener('change',()=>syncSourceSize('w'));
+  resetSourceSize.addEventListener('click',resetImportedSize);
+
+  uniformDims.addEventListener('change',()=>{
+    if(uniformDims.checked && assetSizes.length){
+      const base=assetSizes[0]||{w:sourcePageW,h:sourcePageH};
+      assetSizes=assetSizes.map(()=>({w:base.w,h:base.h}));
+    }
+    renderQuantityList();
+    scheduleRebuild();
+  });
+
+  resetQtyBtn.addEventListener('click',()=>{
+    if(sides.value==='double'){
+      doubleQuantities=doubleQuantities.map(()=>1);
+    }else{
+      singleQuantities=singleQuantities.map(()=>1);
+    }
+    setAllQty.value=1;
+    renderQuantityList();
+    scheduleRebuild();
+  });
+
+  applyAllBtn.addEventListener('click',()=>{
+    const v=Math.max(0,parseInt(setAllQty.value||'0',10));
+    if(sides.value==='double'){
+      doubleQuantities=doubleQuantities.map(()=>v);
+    }else{
+      for(let p=0;p<singleQuantities.length;p++)if(pageAllowed(p))singleQuantities[p]=v;
+    }
+    renderQuantityList();
+    scheduleRebuild();
+  });
+  ['dragenter','dragover'].forEach(t=>dropZone.addEventListener(t,e=>{e.preventDefault();dropZone.classList.add('drag')}));
+  ['dragleave','drop'].forEach(t=>dropZone.addEventListener(t,e=>{e.preventDefault();dropZone.classList.remove('drag')}));
+  dropZone.addEventListener('drop',e=>{const f=e.dataTransfer.files&&e.dataTransfer.files[0];if(f)loadFile(f)});
+</script>
+</body>
+</html>
