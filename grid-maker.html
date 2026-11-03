@@ -67,14 +67,21 @@
     .empty b{display:block;color:var(--ink);font-size:20px;margin-bottom:7px}
     .status{margin-top:12px;font-size:13px;min-height:20px;color:var(--muted)}.status.error{color:var(--danger);font-weight:700}
     footer{margin-top:20px;color:var(--muted);font-size:12px;text-align:center}
+    .gm-loading-overlay{position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;background:rgba(10,14,12,.74);opacity:0;visibility:hidden;pointer-events:none;transition:opacity .16s ease,visibility .16s ease}
+    .gm-loading-overlay.active{opacity:1;visibility:visible;pointer-events:all}
+    .gm-loading-text{color:#fff;font-size:34px;font-weight:850;letter-spacing:.01em;text-shadow:0 2px 14px rgba(0,0,0,.25)}
+    #gmLoadingDots{display:inline-block;min-width:1.4em;text-align:left}
     @media(max-width:850px){header{align-items:flex-start;flex-direction:column}.grid{grid-template-columns:1fr;min-height:0}.viewer{position:static;height:80vh;min-height:620px}.pdfWrap{min-height:0}.pdfWrap iframe{height:100%}}
   </style>
 </head>
 <body>
+<div id="gmLoadingOverlay" class="gm-loading-overlay" aria-live="polite" aria-busy="false">
+  <div class="gm-loading-text">Loading<span id="gmLoadingDots">.</span></div>
+</div>
 <div class="wrap">
   <header>
     <div><h1>Gunpowder PDF Grid Maker</h1><div class="tag">Turn single-page PDFs into cards or tokens on a grid - now that's magic!</div></div>
-    <div style="display:flex;gap:8px;align-items:center"><div class="local">Runs locally in your browser</div><div class="local">v4.8</div></div>
+    <div style="display:flex;gap:8px;align-items:center"><div class="local">Runs locally in your browser</div><div class="local">v4.9</div></div>
   </header>
 
   <div class="grid">
@@ -171,7 +178,8 @@
     quantitySection=el('quantitySection'),qtyList=el('qtyList'),setAllQty=el('setAllQty'),applyAllBtn=el('applyAllBtn'),resetQtyBtn=el('resetQtyBtn'),uniformDims=el('uniformDims'),
     status=el('status'),pdfWrap=el('pdfWrap'),pdfPreview=el('pdfPreview'),
     viewerMeta=el('viewerMeta'),uploadProgress=el('uploadProgress'),
-    uploadProgressBar=el('uploadProgressBar'),uploadProgressText=el('uploadProgressText');
+    uploadProgressBar=el('uploadProgressBar'),uploadProgressText=el('uploadProgressText'),
+    gmLoadingOverlay=el('gmLoadingOverlay'),gmLoadingDots=el('gmLoadingDots');
 
   let sourceBytes=null,sourceName='',sourceDoc=null,sourcePageW=0,sourcePageH=0,sourceNaturalW=0,sourceNaturalH=0,outputUrl=null;
   let mixedSizes=false;
@@ -179,6 +187,18 @@
   let doubleQuantities=[];
   let assetSizes=[];
   let buildSequence=0;
+  let gmDotTimer=null,gmDotStep=0;
+  function showGridLoading(){
+    gmLoadingOverlay.classList.add('active');
+    gmLoadingOverlay.setAttribute('aria-busy','true');
+    gmDotStep=0;gmLoadingDots.textContent='.';
+    if(!gmDotTimer)gmDotTimer=setInterval(()=>{gmDotStep=(gmDotStep%3)+1;gmLoadingDots.textContent='.'.repeat(gmDotStep)},360);
+  }
+  function hideGridLoading(){
+    gmLoadingOverlay.classList.remove('active');
+    gmLoadingOverlay.setAttribute('aria-busy','false');
+    if(gmDotTimer){clearInterval(gmDotTimer);gmDotTimer=null}
+  }
 
   const mm = pt => pt / MM_TO_PT;
   const round1 = n => Math.round(n*10)/10;
@@ -413,6 +433,7 @@
 
   async function loadFile(file){
     if(!file)return;
+    showGridLoading();
     setStatus('Reading PDF…');
     setProgress(8,'Reading PDF…',true);
     try{
@@ -448,10 +469,12 @@
       if(!makeBtn.disabled) await buildPrintPdf(false);
       setProgress(100,'Ready',true);
       setTimeout(()=>setProgress(100,'',false),700);
+      hideGridLoading();
     }catch(err){
       console.error(err);sourceDoc=null;sourceBytes=null;makeBtn.disabled=true;
       setStatus(err.message||'Could not read that PDF.',true);
       setProgress(0,'Upload failed',true);
+      hideGridLoading();
     }
   }
 
