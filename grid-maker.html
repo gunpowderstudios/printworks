@@ -722,11 +722,13 @@
 
   async function buildPrintPdf(downloadAfter){
     if(!sourceDoc||!sourceBytes)return;
+    // Keep the loading veil up for downloads and any option-triggered rebuild.
+    if(downloadAfter)showGridLoading();
     const myBuild=++buildSequence;
     updateUI();
     const l=getLayout(),pageCount=sourceDoc.getPageCount();
-    if(!l||!l.perSheet)return;
-    if(sides.value==='double'&&pageCount%2!==0){setStatus('Double-sided mode needs an even number of source pages.',true);return}
+    if(!l||!l.perSheet){hideGridLoading();return}
+    if(sides.value==='double'&&pageCount%2!==0){setStatus('Double-sided mode needs an even number of source pages.',true);hideGridLoading();return}
     const wasDisabled=makeBtn.disabled;
     makeBtn.disabled=true;
     setStatus(downloadAfter?'Building download PDF…':'Building preview…');
@@ -791,7 +793,11 @@
       }
     }
     finally{
-      if(myBuild===buildSequence)makeBtn.disabled=wasDisabled;
+      if(myBuild===buildSequence){
+        makeBtn.disabled=wasDisabled;
+        // An option change arriving during an older build has its own pending rebuild.
+        if(!rebuildTimer)hideGridLoading();
+      }
     }
   }
 
@@ -803,8 +809,15 @@
   let rebuildTimer=null;
   function scheduleRebuild(){
     updateUI(false);
-    if(rebuildTimer)clearTimeout(rebuildTimer);
-    rebuildTimer=setTimeout(()=>{if(sourceDoc&&!makeBtn.disabled)buildPrintPdf(false)},180);
+    if(rebuildTimer){clearTimeout(rebuildTimer);rebuildTimer=null}
+    if(!sourceDoc)return;
+    // Show immediately for changes to layout, quantities, dimensions and print options.
+    showGridLoading();
+    rebuildTimer=setTimeout(()=>{
+      rebuildTimer=null;
+      if(!sourceDoc||makeBtn.disabled){hideGridLoading();return}
+      buildPrintPdf(false);
+    },180);
   }
   [paper,orientation,customWidth,customHeight,printerSpreads,cropMarks,cutLines,showRefs,centerGrid].forEach(c=>{
     c.addEventListener('change',()=>{renderQuantityList();scheduleRebuild();});
