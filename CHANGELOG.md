@@ -2,6 +2,14 @@
 
 All notable changes to Printworks are recorded here.
 
+## Grid Maker 5.1 — 2026-11-09
+
+### Changed
+- Show the dimmed Loading overlay while changes to layout, dimensions, quantities, or printing options rebuild the preview.
+- Page reference numbers are off by default, with the option labelled "Show page reference numbers".
+- Previously saved projects still honour their stored page-reference setting.
+
+
 ## 1.9 — 2026-10-18
 
 ### Added
