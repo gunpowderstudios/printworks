@@ -124,7 +124,7 @@
         <label class="check"><input id="printerSpreads" type="checkbox" /> Printer spreads (booklet order)</label>
         <label class="check"><input id="cropMarks" type="checkbox" /> Add crop marks</label>
         <label class="check"><input id="cutLines" type="checkbox" /> Fine grey cut lines</label>
-        <label class="check"><input id="showRefs" type="checkbox" checked /> <span class="noteBadge">1</span>Show pink page reference numbers</label>
+        <label class="check"><input id="showRefs" type="checkbox" /> <span class="noteBadge">1</span>Show page reference numbers</label>
         <label class="check"><input id="centerGrid" type="checkbox" checked /> Centre grid horizontally</label>
         <div id="layoutInfo" class="summary">Upload a PDF to calculate the 100% layout.</div>
       </div>
@@ -159,7 +159,7 @@
     <section class="panel viewer">
       <div class="viewerHead">
         <strong>Print PDF preview</strong>
-        <span id="viewerMeta"><span class="noteBadge">1</span>pink numbers will not print</span>
+        <span id="viewerMeta">Upload a PDF to preview the layout</span>
       </div>
       <div id="pdfWrap" class="pdfWrap"><iframe id="pdfPreview" title="Generated print PDF preview"></iframe></div>
     </section>
@@ -509,7 +509,7 @@
       customWidth.value=st.customWidth||210;customHeight.value=st.customHeight||297;
       sides.value=st.sides||'double';pageFilter.value=st.pageFilter||'all';
       printerSpreads.checked=!!st.printerSpreads;cropMarks.checked=!!st.cropMarks;cutLines.checked=!!st.cutLines;
-      showRefs.checked=st.showRefs!==false;centerGrid.checked=st.centerGrid!==false;uniformDims.checked=st.uniformDims!==false;
+      showRefs.checked=st.showRefs===true;centerGrid.checked=st.centerGrid!==false;uniformDims.checked=st.uniformDims!==false;
       singleQuantities=Array.isArray(st.singleQuantities)?st.singleQuantities.slice(0,pages.length):Array(pages.length).fill(1);
       while(singleQuantities.length<pages.length)singleQuantities.push(1);
       const pairCount=Math.floor(pages.length/2);
