@@ -1,5 +1,13 @@
 # Changelog
 
+## PrintWorks 2.4 — 2026-11-15
+
+### Changed
+- PDF is now the primary upload path. Removed the InDesign/IDML upload option and InDesign-only tools from the user-facing workflow; retained PDF preflight and Grid Maker.
+- Explore Typography analyses selectable PDF text across every page, listing internal font IDs, apparent font families, text sizes and page usage. Filter by page or font and highlight matching text on the rendered pages.
+- Scanned, flattened and outlined text is clearly identified as not extractable rather than guessing a font. Font embedding checks remain in PDF Preflight.
+- All analysis runs locally in the browser.
+
 All notable changes to Printworks are recorded here.
 
 ## PrintWorks 2.3 — 2026-11-09
