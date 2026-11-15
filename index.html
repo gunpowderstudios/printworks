@@ -19,7 +19,7 @@
   <script src="js/preflight.js" defer></script>
   <script src="js/preflight-ui.js" defer></script>
   <script src="app.js" defer></script>
-  <script src="js/pdf-typography.js" defer></script>
+  <script src="js/pdf-typography.js?v=2.4.1" defer></script>
 </head>
 <body>
   <div id="pwLoadingOverlay" class="pw-loading-overlay active" aria-live="polite" aria-busy="true">
@@ -37,7 +37,7 @@
       <button class="pw-tool-tab active" type="button" data-tool-tab="printworks">PDF Print Check &amp; Typography</button>
       <button class="pw-tool-tab" type="button" data-tool-tab="gridmaker">PDF Grid Maker</button>
     </nav>
-    <div class="version">v2.4</div>
+    <div class="version">v2.4.1</div>
   </header>
 
   <main id="printworksTool" class="pw-tab-panel">
@@ -135,7 +135,7 @@
       <section id="pdfTypographySection" class="pdf-type-section hidden">
         <div class="section-heading">
           <div><p class="eyebrow">EXPLORE TYPOGRAPHY</p><h2>Fonts and type across your PDF</h2></div>
-          <p>Inspect every page or choose a specific page. Select a font to highlight its text. PDF font names may be internal or subset names; outlined or scanned text cannot be identified as a font.</p>
+          <p>Inspect every page or choose a specific page. Select a font to highlight its text. Font names come from the PDF. Outlined or scanned text without a text layer has no font name to read.</p>
         </div>
         <div class="panel insp-block">
           <div class="pdf-type-toolbar">
@@ -291,7 +291,7 @@
 
     <section class="how">
       <div>
-        <p class="eyebrow">VERSION 2.4</p>
+        <p class="eyebrow">VERSION 2.4.1</p>
         <h2>What it does</h2>
       </div>
       <div class="how-grid">
@@ -307,7 +307,7 @@
     <iframe class="pw-grid-frame" src="grid-maker.html" title="PrintWorks PDF Grid Maker"></iframe>
   </main>
 
-  <footer>Printworks © Gunpowder Studios 2026 · v2.4 · <a href="https://www.gunpowderstudios.co.uk/apps/">More apps from Gunpowder Studios</a></footer>
+  <footer>Printworks © Gunpowder Studios 2026 · v2.4.1 · <a href="https://www.gunpowderstudios.co.uk/apps/">More apps from Gunpowder Studios</a></footer>
 <script>
   (() => {
     const overlay=document.getElementById('pwLoadingOverlay');
