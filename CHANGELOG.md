@@ -1,5 +1,10 @@
 # Changelog
 
+## PrintWorks 2.4.1 — 2026-11-15
+
+### Fixed
+- Explore Typography now shows PDF font names and keeps renderer IDs hidden. Embedded subset prefixes are removed from labels, and unnamed fonts show an Unknown font label.
+
 ## PrintWorks 2.4 — 2026-11-15
 
 ### Changed
