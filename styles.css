@@ -179,3 +179,20 @@ footer a{color:inherit;text-decoration:underline;text-underline-offset:3px}foote
 .pdf-type-stage canvas{display:block;max-width:none}
 .pdf-type-overlay{position:absolute;inset:0;pointer-events:none}
 .pdf-type-mark{position:absolute;box-sizing:border-box;border:1px solid #d78b08;background:#fbbf2460}
+
+/* Free font alternatives */
+.pdf-type-entry{min-width:0;display:flex;flex-direction:column;border:1px solid var(--line);border-radius:10px;background:#fff;padding:0 10px 10px}
+.pdf-type-entry .pdf-type-chip{margin:0 -10px 8px;border:0;flex:1}
+.pdf-font-alt{align-self:flex-start;text-align:left}
+.font-alt-dialog{color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:clamp(14px,3vw,28px);width:min(900px,calc(100% - 28px));max-height:88vh;overflow:auto;box-shadow:0 18px 64px #0004}
+.font-alt-dialog::backdrop{background:#1717179c}
+.font-alt-header{display:flex;justify-content:space-between;align-items:flex-start;gap:16px}
+.font-alt-header h2{font:500 clamp(21px,4vw,32px)/1.1 Georgia,serif;margin:0;overflow-wrap:anywhere}
+.font-alt-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr));gap:12px;margin-top:12px}
+.font-alt-card,.font-alt-original{border:1px solid var(--line);background:#fff;border-radius:8px;min-width:0;padding:12px}
+.font-alt-original{margin-top:16px}
+.font-alt-card a{color:inherit;font-weight:800;text-underline-offset:3px}
+.font-alt-tags{color:#6f321f;font-size:12px;font-weight:700;min-height:1.5em;margin-top:4px}
+.font-alt-scroll{overflow:auto;margin-top:6px;min-height:46px}
+.font-alt-scroll canvas{display:block}
+.font-alt-sample{white-space:pre;display:inline-block;line-height:1.4}

@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="description" content="Check PDF print readiness and explore typography, fonts and text sizes across every page. Runs entirely in your browser.">
   <title>PrintWorks — PDF Preflight & Typography Explorer</title>
-  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="styles.css?v=2.5">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js" defer></script>
   <script src="js/colour.js" defer></script>
@@ -19,7 +19,8 @@
   <script src="js/preflight.js" defer></script>
   <script src="js/preflight-ui.js" defer></script>
   <script src="app.js" defer></script>
-  <script src="js/pdf-typography.js?v=2.4.1" defer></script>
+  <script src="js/font-alternatives.js?v=2.5" defer></script>
+  <script src="js/pdf-typography.js?v=2.5" defer></script>
 </head>
 <body>
   <div id="pwLoadingOverlay" class="pw-loading-overlay active" aria-live="polite" aria-busy="true">
@@ -37,7 +38,7 @@
       <button class="pw-tool-tab active" type="button" data-tool-tab="printworks">PDF Print Check &amp; Typography</button>
       <button class="pw-tool-tab" type="button" data-tool-tab="gridmaker">PDF Grid Maker</button>
     </nav>
-    <div class="version">v2.4.1</div>
+    <div class="version">v2.5</div>
   </header>
 
   <main id="printworksTool" class="pw-tab-panel">
@@ -291,7 +292,7 @@
 
     <section class="how">
       <div>
-        <p class="eyebrow">VERSION 2.4.1</p>
+        <p class="eyebrow">VERSION 2.5</p>
         <h2>What it does</h2>
       </div>
       <div class="how-grid">
@@ -307,7 +308,7 @@
     <iframe class="pw-grid-frame" src="grid-maker.html" title="PrintWorks PDF Grid Maker"></iframe>
   </main>
 
-  <footer>Printworks © Gunpowder Studios 2026 · v2.4.1 · <a href="https://www.gunpowderstudios.co.uk/apps/">More apps from Gunpowder Studios</a></footer>
+  <footer>Printworks © Gunpowder Studios 2026 · v2.5 · <a href="https://www.gunpowderstudios.co.uk/apps/">More apps from Gunpowder Studios</a></footer>
 <script>
   (() => {
     const overlay=document.getElementById('pwLoadingOverlay');

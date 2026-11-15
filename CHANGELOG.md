@@ -1,5 +1,10 @@
 # Changelog
 
+## PrintWorks 2.5 — 2026-11-15
+
+### Added
+- Find similar free fonts in Explore Typography. Curated Google Fonts suggestions compare an original PDF excerpt with alternatives, highlighting the closest look and closest estimated width when available. Previews do not change the PDF.
+
 ## PrintWorks 2.4.1 — 2026-11-15
 
 ### Fixed

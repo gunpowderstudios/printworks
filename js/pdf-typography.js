@@ -39,8 +39,9 @@
    return found;
  }
  const fontLabel=entry=>entry.label||'Unknown font '+entry.number;
- function reset(){token++;doc=null;pages=[];names.clear();section()?.classList.add('hidden');if($('#pdfTypePages'))$('#pdfTypePages').innerHTML='';}
+ function reset(){window.PWFontAlternatives?.close();token++;doc=null;pages=[];names.clear();section()?.classList.add('hidden');if($('#pdfTypePages'))$('#pdfTypePages').innerHTML='';}
  async function start(pdf){
+   window.PWFontAlternatives?.close();
    const mine=++token;doc=pdf;pages=[];names.clear();
    section().classList.remove('hidden');
    $('#pdfTypeStatus').textContent='Reading text positions and typography across '+pdf.numPages+' pages…';
@@ -62,7 +63,7 @@
         const size=Math.round((sy||sx||0)*10)/10;
         if(!names.has(k)) names.set(k,{label:'',number:names.size+1,items:0,pages:new Set(),sizes:new Set()});
         const font=names.get(k);if(resolved.has(k))font.label=resolved.get(k);font.items++;font.pages.add(i);if(size)font.sizes.add(size);
-        return {str:item.str,font:k,size,transform:item.transform,width:item.width,height:item.height};
+        return {str:item.str,font:k,size,transform:item.transform,width:item.width,height:item.height,vertical:!!tc.styles?.[k]?.vertical};
       });
       pages.push({number:i,items,hasText:items.length>0});
       $('#pdfTypeStatus').textContent='Reading page '+i+' of '+pdf.numPages+'…';
@@ -85,9 +86,27 @@
    $('#pdfTypeFonts').innerHTML=ordered.map(([key,v])=>{
       const active=f===key;
       const sizes=[...v.sizes].sort((a,b)=>a-b);
-      return '<button type="button" class="pdf-type-chip '+(active?'selected':'')+'" data-font="'+esc(key)+'"><strong>'+esc(fontLabel(v))+'</strong><small>'+v.pages.size+' pages · '+v.items+' runs · '+(sizes.length?sizes.slice(0,12).join(', ')+(sizes.length>12?'…':'')+' pt':'size unavailable')+'</small></button>';
+      return '<div class="pdf-type-entry"><button type="button" class="pdf-type-chip '+(active?'selected':'')+'" data-font="'+esc(key)+'"><strong>'+esc(fontLabel(v))+'</strong><small>'+v.pages.size+' pages · '+v.items+' runs · '+(sizes.length?sizes.slice(0,12).join(', ')+(sizes.length>12?'…':'')+' pt':'size unavailable')+'</small></button><button type="button" class="mini-btn pdf-font-alt" data-font="'+esc(key)+'" aria-label="Find similar free fonts to '+esc(fontLabel(v))+'">Find similar free fonts</button></div>';
    }).join('')||'<p>No selectable text fonts found.</p>';
-   $('#pdfTypeFonts').querySelectorAll('button').forEach(b=>b.onclick=()=>{$('#pdfTypeFont').value=$('#pdfTypeFont').value===b.dataset.font?'all':b.dataset.font;render();});
+   $('#pdfTypeFonts').querySelectorAll('.pdf-type-chip').forEach(b=>b.onclick=()=>{$('#pdfTypeFont').value=$('#pdfTypeFont').value===b.dataset.font?'all':b.dataset.font;render();});
+   $('#pdfTypeFonts').querySelectorAll('.pdf-font-alt').forEach(button=>{
+     button.hidden=!window.PWFontAlternatives;
+     button.onclick=()=>{
+       const key=button.dataset.font;
+       const entry=names.get(key);
+       let sample=null, score=-Infinity;
+       for(const p of available){
+         for(const item of p.items){
+           if(item.font!==key||!item.str.trim())continue;
+           const length=[...item.str].length;
+           const upright=!item.vertical&&item.transform[1]===0&&item.transform[2]===0&&item.size>0&&item.width>0;
+           const rank=(upright?500:0)+(length<=65?100:0)-Math.abs(length-(item.size>=16?12:32));
+           if(rank>score){score=rank;sample={...item,page:p.number};}
+         }
+       }
+       window.PWFontAlternatives.open(entry.label,doc,sample);
+     };
+   });
    const empty=available.filter(p=>!p.hasText).length;
    $('#pdfTypeStatus').textContent=(empty?empty+' page(s) contain no extractable text; artwork may be flattened, scanned or outlined. ':'')+'Font names come from the PDF. Point sizes are estimated from the text on the page. Check the preflight section for embedding status.';
    const grid=$('#pdfTypePages');grid.innerHTML='';
