@@ -10,18 +10,18 @@ const moods=[
 
 function init(){
  const dz=$('#dropZone'), fi=$('#fileInput');
- dz.onclick=()=>fi.click(); dz.onkeydown=e=>{if(e.key==='Enter'||e.key===' ')fi.click()};
+ if(dz){dz.onclick=()=>fi.click(); dz.onkeydown=e=>{if(e.key==='Enter'||e.key===' ')fi.click()};
  ['dragenter','dragover'].forEach(ev=>dz.addEventListener(ev,e=>{e.preventDefault();dz.classList.add('drag')}));
  ['dragleave','drop'].forEach(ev=>dz.addEventListener(ev,e=>{e.preventDefault();dz.classList.remove('drag')}));
  dz.addEventListener('drop',e=>handleFile(e.dataTransfer.files[0]));
- fi.onchange=e=>handleFile(e.target.files[0]);
+ fi.onchange=e=>handleFile(e.target.files[0]);}
  const pz=$('#pfDropZone'), pfi=$('#pfFileInput');
  pz.onclick=()=>pfi.click(); pz.onkeydown=e=>{if(e.key==='Enter'||e.key===' ')pfi.click()};
  ['dragenter','dragover'].forEach(ev=>pz.addEventListener(ev,e=>{e.preventDefault();pz.classList.add('drag')}));
  ['dragleave','drop'].forEach(ev=>pz.addEventListener(ev,e=>{e.preventDefault();pz.classList.remove('drag')}));
  pz.addEventListener('drop',e=>handlePdfFirst(e.dataTransfer.files[0]));
  pfi.onchange=e=>handlePdfFirst(e.target.files[0]);
- $('#newFileBtn').onclick=()=>{fi.value='';pfi.value='';state.pdfOnly=false;$('#workspace').classList.remove('pdf-only');if(window.PW&&PW.preflightUI)PW.preflightUI.reset();$('#pdfInput').value='';state.pdfFile=null;state.pdfDoc=null;state.selected=null;$('#pdfStatus').classList.add('hidden');$('#pdfBtn').textContent='Add PDF preview';$('#workspace').classList.add('hidden');$('.hero').classList.remove('hidden');if(window.PW&&PW.inspector)PW.inspector.reset();window.scrollTo({top:0,behavior:'smooth'})};
+ $('#newFileBtn').onclick=()=>{if(fi)fi.value='';pfi.value='';if(window.PWTypography)PWTypography.reset();state.pdfOnly=false;$('#workspace').classList.remove('pdf-only');if(window.PW&&PW.preflightUI)PW.preflightUI.reset();$('#pdfInput').value='';state.pdfFile=null;state.pdfDoc=null;state.selected=null;$('#pdfStatus').classList.add('hidden');$('#pdfBtn').textContent='Add PDF preview';$('#workspace').classList.add('hidden');$('.hero').classList.remove('hidden');if(window.PW&&PW.inspector)PW.inspector.reset();window.scrollTo({top:0,behavior:'smooth'})};
  $('#exportBtn').onclick=exportIDML;
  $('#autoStyleBtn').onclick=()=>{
    const btn=$('#autoStyleBtn');
@@ -51,7 +51,7 @@ async function handlePdfFirst(file){
   const st=$('#pdfStatus');st.classList.remove('hidden');st.innerHTML='<strong>PDF:</strong> '+escapeHtml(file.name)+' · '+(bytes.length/1e6).toFixed(1)+' MB';
   ws.scrollIntoView({behavior:'smooth',block:'start'});
   if(window.PW&&PW.preflightUI)PW.preflightUI.start(bytes,file);
-  getPdfJs().then(async pdfjs=>{state.pdfDoc=await pdfjs.getDocument({data:bytes.slice()}).promise;if(window.PW&&PW.preflightUI)PW.preflightUI.thumbsReady()}).catch(e=>console.warn('Page images unavailable',e));
+  getPdfJs().then(async pdfjs=>{state.pdfDoc=await pdfjs.getDocument({data:bytes.slice()}).promise;if(window.PW&&PW.preflightUI)PW.preflightUI.thumbsReady();if(window.PWTypography)PWTypography.start(state.pdfDoc)}).catch(e=>{console.warn('Page images unavailable',e);const status=document.querySelector('#pdfTypeStatus');if(status)status.textContent='Unable to inspect typography: '+e.message;});
  }catch(err){console.error(err);alert('Printworks could not read this PDF. '+err.message)}
  finally{if(window.PWLoading)PWLoading.hide()}
 }
