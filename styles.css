@@ -160,3 +160,22 @@ footer a{color:inherit;text-decoration:underline;text-underline-offset:3px}foote
 #pwLoadingDots{display:inline-block;min-width:1.4em;text-align:left}
 
 @media(max-width:900px){.topbar{flex-wrap:wrap}.pw-tool-tabs-top{order:3;width:100%;margin:10px 0 0;overflow-x:auto}.pw-tool-tab{white-space:nowrap}}
+
+/* v2.4 PDF-first typography explorer */
+.entry-grid{grid-template-columns:minmax(0,1fr);max-width:950px;margin-left:auto;margin-right:auto}
+.pdf-type-toolbar{display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin-bottom:18px}
+.pdf-type-toolbar label{font-weight:700;font-size:13px;display:flex;align-items:center;gap:8px}
+.pdf-type-toolbar select{padding:10px 12px;min-width:140px;border:1px solid var(--line,#ddd);border-radius:8px;background:#fff;max-width:300px}
+.pdf-type-fonts{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:10px;margin-bottom:16px}
+.pdf-type-chip{border:1px solid var(--line,#ddd);border-radius:10px;padding:12px;text-align:left;background:#fff;cursor:pointer;overflow-wrap:anywhere;color:inherit}
+.pdf-type-chip strong{display:block;font-size:15px;margin-bottom:5px}
+.pdf-type-chip small{font-size:12px;line-height:1.5;color:#686868}
+.pdf-type-chip.selected{outline:2px solid #2f8a3a;background:#eef8f0}
+.pdf-type-pages{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,310px),1fr));gap:20px;margin-top:14px;align-items:start}
+.pdf-type-page{min-width:0;background:#f5f4f0;border:1px solid var(--line,#ddd);border-radius:12px;padding:14px;overflow:auto}
+.pdf-type-page>strong{display:block;margin-bottom:10px}
+.pdf-type-page>small{display:block;margin-top:8px;color:#686868}
+.pdf-type-stage{position:relative;display:table;max-width:none;background:white;box-shadow:0 3px 16px #0002}
+.pdf-type-stage canvas{display:block;max-width:none}
+.pdf-type-overlay{position:absolute;inset:0;pointer-events:none}
+.pdf-type-mark{position:absolute;box-sizing:border-box;border:1px solid #d78b08;background:#fbbf2460}
