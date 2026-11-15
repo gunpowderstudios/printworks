@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="description" content="Check a print PDF for bleed, fonts, image resolution and colour, and try new fonts on an InDesign file. Runs entirely in your browser.">
-  <title>Printworks — PDF preflight and typography checker for InDesign</title>
+  <meta name="description" content="Check PDF print readiness and explore typography, fonts and text sizes across every page. Runs entirely in your browser.">
+  <title>PrintWorks — PDF Preflight & Typography Explorer</title>
   <link rel="stylesheet" href="styles.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js" defer></script>
@@ -19,6 +19,7 @@
   <script src="js/preflight.js" defer></script>
   <script src="js/preflight-ui.js" defer></script>
   <script src="app.js" defer></script>
+  <script src="js/pdf-typography.js" defer></script>
 </head>
 <body>
   <div id="pwLoadingOverlay" class="pw-loading-overlay active" aria-live="polite" aria-busy="true">
@@ -33,31 +34,24 @@
       </div>
     </div>
     <nav class="pw-tool-tabs pw-tool-tabs-top" aria-label="PrintWorks tools">
-      <button class="pw-tool-tab active" type="button" data-tool-tab="printworks">Print Check &amp; Typography</button>
+      <button class="pw-tool-tab active" type="button" data-tool-tab="printworks">PDF Print Check &amp; Typography</button>
       <button class="pw-tool-tab" type="button" data-tool-tab="gridmaker">PDF Grid Maker</button>
     </nav>
-    <div class="version">v2.3</div>
+    <div class="version">v2.4</div>
   </header>
 
   <main id="printworksTool" class="pw-tab-panel">
     <section class="hero">
-      <p class="eyebrow">PDF PREFLIGHT AND TYPOGRAPHY CHECKER</p>
+      <p class="eyebrow">PDF PREFLIGHT & TYPOGRAPHY EXPLORER</p>
       <h1>Check it before<br>the printer does.</h1>
-      <p class="intro">Drop in the PDF you are about to send to your printer. Printworks checks bleed, fonts, image resolution and colour, right in your browser. Open the InDesign file as well to try new fonts everywhere and see how they would print.</p>
+      <p class="intro">Drop in a PDF to check it for print and explore its typography. See fonts, sizes and where text appears on every page — without needing InDesign.</p>
       <div class="entry-grid">
-        <div id="pfDropZone" class="drop-zone entry-primary" tabindex="0" role="button" aria-label="Choose a PDF to check">
+        <div id="pfDropZone" class="drop-zone entry-primary" tabindex="0" role="button" aria-label="Choose a PDF">
           <input id="pfFileInput" type="file" accept=".pdf,application/pdf" hidden>
           <div class="drop-icon">PDF</div>
-          <h2>Check a PDF</h2>
-          <p>Drop it here or click to choose a file</p>
-          <small>Your file stays in this browser.</small>
-        </div>
-        <div id="dropZone" class="drop-zone" tabindex="0" role="button" aria-label="Upload IDML file">
-          <input id="fileInput" type="file" accept=".idml,application/zip" hidden>
-          <div class="drop-icon">Aa</div>
-          <h2>Explore typography</h2>
-          <p>Drop an IDML file here or click to choose</p>
-          <small>Optionally add its PDF afterwards.</small>
+          <h2>Explore a PDF</h2>
+          <p>Drop a PDF here or click to choose. Print checks and typography analysis are both included.</p>
+          <small>All processing stays in your browser.</small>
         </div>
       </div>
     </section>
@@ -113,7 +107,7 @@
             <label class="pf-check"><input id="pf_allowRgb" class="pf-in" type="checkbox"> My printer accepts RGB</label>
             <label class="pf-check"><input id="pf_allowSpot" class="pf-in" type="checkbox"> This job uses spot colours (Pantone, foil, varnish)</label>
           </div>
-          <div class="pf-group">For the typography</div>
+          <div class="pf-group">Typography print thresholds</div>
           <div class="pf-grid">
             <label>Minimum text size (pt)<input id="pf_minText" class="pf-in" type="number" min="0" step="0.5"></label>
             <label>Light weights below (pt)<input id="pf_lightMin" class="pf-in" type="number" min="0" step="0.5"></label>
@@ -137,6 +131,23 @@
         <div id="pfBody" class="insp-block"></div>
       </section>
 
+
+      <section id="pdfTypographySection" class="pdf-type-section hidden">
+        <div class="section-heading">
+          <div><p class="eyebrow">EXPLORE TYPOGRAPHY</p><h2>Fonts and type across your PDF</h2></div>
+          <p>Inspect every page or choose a specific page. Select a font to highlight its text. PDF font names may be internal or subset names; outlined or scanned text cannot be identified as a font.</p>
+        </div>
+        <div class="panel insp-block">
+          <div class="pdf-type-toolbar">
+            <label>Page <select id="pdfTypePage"><option value="all">All pages</option></select></label>
+            <label>Font <select id="pdfTypeFont"><option value="all">All fonts</option></select></label>
+            <span id="pdfTypeSummary" class="insp-note">Open a PDF to begin.</span>
+          </div>
+          <div id="pdfTypeFonts" class="pdf-type-fonts"></div>
+          <div id="pdfTypeStatus" class="insp-note"></div>
+          <div id="pdfTypePages" class="pdf-type-pages"></div>
+        </div>
+      </section>
 
       <section id="pageLab" class="page-lab hidden idml-only">
         <div class="section-heading">
@@ -280,13 +291,13 @@
 
     <section class="how">
       <div>
-        <p class="eyebrow">VERSION 2.3</p>
+        <p class="eyebrow">VERSION 2.4</p>
         <h2>What it does</h2>
       </div>
       <div class="how-grid">
         <article><b>01</b><h3>Checks your PDF</h3><p>Bleed, embedded fonts, image resolution and colour, checked against your printer’s own rules. Works on a PDF alone, with nothing to upload.</p></article>
-        <article><b>02</b><h3>Changes fonts safely</h3><p>Map every font in an InDesign file to a new one, including text that styles alone would miss. Only fonts change, and the new file is checked before you download it.</p></article>
-        <article><b>03</b><h3>Warns before print</h3><p>Flags tiny or thin text, text already cut off in InDesign, and frames that sit too close to the trim edge.</p></article>
+        <article><b>02</b><h3>Explore typography</h3><p>List detectable PDF fonts and sizes, filter by page or font, and highlight the relevant text on the original page.</p></article>
+        <article><b>03</b><h3>Review every page</h3><p>Zoom into PDF pages, inspect text placements, and check font embedding with the PDF preflight report.</p></article>
       </div>
     </section>
     <div id="lightbox" class="lightbox hidden" aria-hidden="true"><button id="lightboxClose" aria-label="Close preview">×</button><div class="lightbox-inner"><div class="lb-stage"><canvas id="lightboxCanvas"></canvas><div id="lightboxOverlay" class="lb-overlay"></div></div><div id="lightboxCaption"></div><div id="lightboxLegend" class="lb-legend"></div></div></div>
@@ -296,7 +307,7 @@
     <iframe class="pw-grid-frame" src="grid-maker.html" title="PrintWorks PDF Grid Maker"></iframe>
   </main>
 
-  <footer>Printworks © Gunpowder Studios 2026 · v2.3 · <a href="https://www.gunpowderstudios.co.uk/apps/">More apps from Gunpowder Studios</a></footer>
+  <footer>Printworks © Gunpowder Studios 2026 · v2.4 · <a href="https://www.gunpowderstudios.co.uk/apps/">More apps from Gunpowder Studios</a></footer>
 <script>
   (() => {
     const overlay=document.getElementById('pwLoadingOverlay');
